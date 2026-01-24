@@ -1,0 +1,304 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+h1 { text-align: center; color: #2c3e50; }
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+input, button {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+}
+
+button {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover { background-color: #219150; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th { background-color: #ecf0f1; }
+
+.btn-sil {
+    background-color: #e74c3c;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+select {
+    padding: 5px;
+    border-radius: 4px;
+}
+/* Buton Stilleri */
+.btn-ekle {
+    background-color: #2980b9;
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.btn-geri {
+    background-color: #95a5a6;
+    color: white;
+    padding: 8px 15px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.btn-ekle:hover { background-color: #3498db; }
+.btn-geri:hover { background-color: #7f8c8d; }
+
+/* Ana Menü Tasarımı */
+.menu-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Butonlar arası boşluk */
+}
+
+.menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    padding: 20px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    width: 100%; /* Tam genişlik */
+    box-sizing: border-box;
+}
+
+.menu-btn:active {
+    transform: scale(0.98); /* Tıklama efekti */
+}
+
+/* Renkler */
+.btn-blue { background-color: #3498db; }
+.btn-green { background-color: #27ae60; }
+.btn-gray { background-color: #7f8c8d; }
+
+.btn-blue:hover { background-color: #2980b9; }
+.btn-green:hover { background-color: #219150; }
+.btn-gray:hover { background-color: #95a5a6; }
+
+/* TAKVİM STİLLERİ */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 15px;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.calendar-header h3 { margin: 0; color: #2c3e50; }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr); /* 7 Sütun */
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.day-name {
+    background: #ecf0f1;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    color: #555;
+    border-bottom: 1px solid #ddd;
+}
+
+.calendar-day {
+    min-height: 100px; /* Kutuların yüksekliği */
+    padding: 5px;
+    border-right: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    position: relative;
+    background: white;
+}
+
+.calendar-day:hover { background-color: #f9f9f9; }
+
+.calendar-day strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+/* Bugünün rengi */
+.today { background-color: #e8f6fd !important; }
+
+/* Etiketler */
+.tag {
+    display: block;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tag-siparis { background-color: #e67e22; } /* Turuncu: Sipariş Teslimi */
+.tag-not { background-color: #9b59b6; }     /* Mor: Hatırlatıcı */
+.tag-sil { 
+    font-size: 10px; cursor: pointer; color: black; float: right; margin-left: 2px; 
+}
+/* --- TAKVİM DÜZELTMELERİ --- */
+
+/* Takvim başlığındaki butonların genişliğini otomatiğe çekiyoruz */
+.calendar-header button {
+    width: auto !important; /* Global ayarı ezer */
+    padding: 8px 20px;
+    margin: 0;
+    background-color: #3498db; /* Mavi renk olsun */
+}
+
+.calendar-header button:hover {
+    background-color: #2980b9;
+}
+
+/* Başlık metnini ortala ve belirgin yap */
+.calendar-header h3 {
+    flex-grow: 1;
+    text-align: center;
+    font-size: 1.2em;
+    margin: 0 10px;
+}
+/* --- MODAL (POPUP) STİLLERİ --- */
+.modal {
+    display: none; /* Başlangıçta gizli */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5); /* Arka plan karartma */
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto; /* Üstten %15 boşluk, ortala */
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%; /* Mobilde geniş */
+    max-width: 400px; /* Masaüstünde taşmasın */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+.close-btn:hover { color: black; }
+
+.modal-body {
+    margin-top: 15px;
+    max-height: 300px;
+    overflow-y: auto; /* Çok içerik olursa kaydır */
+}
+
+/* Modal İçindeki Liste Öğeleri */
+.modal-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-item:last-child { border-bottom: none; }
+
+.modal-footer {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+#modalNoteInput {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.btn-modal-ekle {
+    width: auto;
+    padding: 8px 15px;
+    background-color: #27ae60;
+}
+/* Düzenle Butonu */
+.btn-duzenle {
+    background-color: #f39c12; /* Turuncu */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px; /* Sil butonuyla arasına mesafe koy */
+}
+.btn-duzenle:hover { background-color: #d35400; }

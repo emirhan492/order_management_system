@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sipariş Listesi</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        th.sortable { cursor: pointer; user-select: none; }
+        th.sortable:hover { background-color: #e0e0e0; }
+        .sort-icon { margin-left: 5px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>📋 Sipariş Listesi</h2>
+            <a href="/" class="btn-geri">🏠 Ana Menü</a>
+        </div>
+
+        <div class="card">
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                
+                <div style="flex: 3; min-width: 200px;">
+                    <input type="text" id="searchInput" placeholder="🔍 Müşteri Adı veya Telefon Ara..." onkeyup="filterOrders()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="flex: 1; min-width: 150px;">
+                    <select id="statusFilter" onchange="filterOrders()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="Tümü">Tüm Durumlar</option>
+                        <option value="Bekliyor">Bekliyor</option>
+                        <option value="Hazırlanıyor">Hazırlanıyor</option>
+                        <option value="Teslim Edildi">Teslim Edildi</option>
+                        <option value="Sipariş Tamamlandı">Sipariş Tamamlandı</option>
+                    </select>
+                </div>
+                
+                </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="toggleSort('musteri')">Müşteri <span id="icon-musteri" class="sort-icon"></span></th>
+                        <th>Detay</th> <th class="sortable" onclick="toggleSort('tarih')">Tarih / Teslim <span id="icon-tarih" class="sort-icon"></span></th>
+                        <th class="sortable" onclick="toggleSort('fiyat')">Fiyat <span id="icon-fiyat" class="sort-icon"></span></th>
+                        <th>Sipariş Durumu</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="siparisTablosu"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            <h3 style="text-align:center; color:#2980b9; margin-top: 0;">✏️ Siparişi Düzenle</h3>
+            
+            <form id="editForm" onsubmit="updateSiparis(event)">
+                <input type="hidden" id="editId">
+                
+                <div class="form-group">
+                    <input type="text" id="editMusteri" placeholder="Müşteri Adı" required>
+                    <input type="text" id="editTelefon" placeholder="Telefon" required>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">Ürün Kategorisi:</label>
+                    <select id="editKategori" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="Güneşlik">Güneşlik</option>
+                        <option value="Tül">Tül</option>
+                        <option value="Zebra">Zebra</option>
+                        <option value="Stor">Stor</option>
+                        <option value="Plicell">Plicell</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">Sipariş Durumu:</label>
+                    <select id="editDurum" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+                        <option value="Bekliyor">Bekliyor</option>
+                        <option value="Hazırlanıyor">Hazırlanıyor</option>
+                        <option value="Teslim Edildi">Teslim Edildi</option>
+                        <option value="Sipariş Tamamlandı">Sipariş Tamamlandı</option>
+                    </select>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Ücret & Ödeme</h4>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 12px; margin-bottom: 3px; font-weight: bold; color: #555;">Toplam Sipariş Tutarı (TL):</label>
+                        <input type="number" id="editFiyat" placeholder="0.00" required style="width: 100%; box-sizing: border-box; font-weight: bold;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 12px; margin-bottom: 3px; font-weight: bold; color: #555;">Alınan Ödeme (TL):</label>
+                        <input type="number" id="editOdenen" placeholder="0.00" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #333;">
+                            <input type="checkbox" id="editTamamiOdendi" style="width: 20px; height: 20px; margin: 0;">
+                            <span>Siparişin Tamamı Ödendi</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold;">Teslim Tarihi:</label>
+                    <input type="date" id="editTarih" required>
+                </div>
+
+                <div class="form-group">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:14px;">Sipariş Notları:</label>
+                    <textarea id="editNot" placeholder="Sipariş Notları..." rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                    <button type="button" onclick="closeEditModal()" style="background-color: #95a5a6; padding: 10px 20px;">İptal</button>
+                    <button type="submit" style="background-color: #2980b9; padding: 10px 20px;">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

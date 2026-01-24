@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow"> 
+    <title>Sipariş Takip Sistemi</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        
+        <div id="loginEkrani" class="card" style="text-align: center; max-width: 400px; margin: 50px auto;">
+            <h2>🔐 Giriş Yap</h2>
+            <p>Panele erişmek için PIN girin.</p>
+            <input type="password" id="pinInput" placeholder="######" maxlength="6" style="text-align: center; font-size: 24px; letter-spacing: 5px; width: 60%;">
+            <br><br>
+            <button onclick="girisYap()">GİRİŞ</button>
+            <p id="loginHata" style="color: red; display: none;">Hatalı PIN!</p>
+        </div>
+
+        <div id="dashboard" style="display: none; max-width: 500px; margin: 0 auto;">
+            
+            <h1 style="text-align: center; margin-bottom: 30px;">📦 Papatya Order</h1>
+
+            <div class="menu-container">
+                
+                <a href="new-order.html" class="menu-btn btn-blue">
+                    <span style="font-size: 24px;">➕</span>
+                    <span>Yeni Sipariş Oluştur</span>
+                </a>
+
+                <a href="orders.html" class="menu-btn btn-green">
+                    <span style="font-size: 24px;">📋</span>
+                    <span>Mevcut Siparişler</span>
+                </a>
+                
+                 <a href="calendar.html" class="menu-btn" style="background-color: #9b59b6;">
+                    <span style="font-size: 24px;">📅</span>
+                    <span>Takvim & Ajanda</span>
+                </a>
+
+                <button onclick="cikisYap()" class="menu-btn btn-gray">
+                    <span style="font-size: 24px;">🚪</span>
+                    <span>Çıkış Yap</span>
+                </button>
+
+               
+
+            </div>
+        </div>
+
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

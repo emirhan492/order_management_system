@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Yeni Sipariş Ekle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>➕ Yeni Sipariş</h2>
+            <a href="/" class="btn-geri">⬅️ Listeye Dön</a>
+        </div>
+
+        <div class="card">
+            <form id="siparisForm">
+                <div class="form-group">
+                    <input type="text" id="musteri_adi" placeholder="Müşteri Adı" required>
+                    <input type="text" id="telefon" placeholder="Telefon (05...)" required>
+                </div>
+                
+                <div class="form-group">
+                    <select id="kategori" required style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+                        <option value="" disabled selected>Ürün Kategorisi Seçiniz</option>
+                        <option value="Güneşlik">Güneşlik</option>
+                        <option value="Tül">Tül</option>
+                        <option value="Zebra">Zebra</option>
+                        <option value="Stor">Stor</option>
+                        <option value="Plicell">Plicell</option>
+                    </select>
+
+                    <input type="number" id="fiyat" placeholder="Fiyat (TL)" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Teslim Tarihi:</label>
+                    <input type="date" id="teslim_tarihi" required>
+                </div>
+
+                <div class="form-group">
+                    <textarea id="siparis_notu" placeholder="Sipariş Notları (Ölçüler, renk, desen vb. buraya yazın...)" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;"></textarea>
+                </div>
+
+                <button type="submit">Siparişi Kaydet</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
