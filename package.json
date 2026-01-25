@@ -4,6 +4,8 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0",
     "pg": "^8.17.2"
   }
 }

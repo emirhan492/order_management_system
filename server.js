@@ -3,7 +3,9 @@ const express = require('express');
 const { Pool } = require('pg');
 const session = require('express-session');
 const multer = require('multer'); 
-const path = require('path');     
+const path = require('path');
+const TelegramBot = require('node-telegram-bot-api');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,101 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// --- TELEGRAM BOT AYARLARI ---
+const TELEGRAM_TOKEN = '8502910514:AAG_dcVk3NzK5cKmC9nht6qDEew5DUsHdqw';
+const TELEGRAM_CHAT_ID = '-1003774547298'; 
+
+// Botu başlat (Polling kapalı, sadece mesaj atacağız)
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
+
+// --- GÜNLÜK HATIRLATMA GÖREVİ (Her sabah 09:00) ---
+cron.schedule('0 9 * * *', async () => {
+    try {
+        // 1. Yarının tarihini hesapla
+        const bugun = new Date();
+        const yarin = new Date(bugun);
+        yarin.setDate(bugun.getDate() + 1); // Bugüne 1 gün ekle
+
+        // Tarih formatını ayarla (YYYY-MM-DD)
+        const offset = yarin.getTimezoneOffset() * 60000; 
+        const teslimTarihi = new Date(yarin.getTime() - offset).toISOString().split('T')[0];
+
+        console.log(`📅 Yarınki (${teslimTarihi}) teslimatlar kontrol ediliyor...`);
+
+        // 2. Veritabanından YARIN teslim edilecekleri bul
+        const query = "SELECT * FROM siparisler WHERE teslim_tarihi = $1";
+        const result = await pool.query(query, [teslimTarihi]);
+
+        if (result.rows.length > 0) {
+            let mesaj = `📋 *YARINKİ TESLİMATLAR*\n--------------------------\n`;
+            
+            result.rows.forEach((sip) => {
+                // Ürün ismini çekme mantığı (JSON kontrolü)
+                let urunGoster = sip.kategori;
+                if (sip.urunler) {
+                    try {
+                        const parsedUrunler = JSON.parse(sip.urunler);
+                        if (parsedUrunler.length > 0) {
+                            urunGoster = parsedUrunler.map(u => u.kategori).join(', ');
+                        }
+                    } catch (e) {}
+                }
+                urunGoster = urunGoster || 'Belirsiz';
+
+                mesaj += `- *${sip.musteri_adi}* - ${urunGoster}\n`;
+            });
+
+            // 3. Telegram grubuna gönder
+            bot.sendMessage(TELEGRAM_CHAT_ID, mesaj, { parse_mode: 'Markdown' });
+            console.log("✅ Yarınki teslimatlar için bildirim gönderildi.");
+        } else {
+            console.log("ℹ️ Yarın için planlanmış bir teslimat bulunmuyor.");
+        }
+    } catch (err) {
+        console.error("❌ Telegram Bot hatası:", err);
+    }
+});
+
+// --- MANUEL TEST ROTASI ---
+app.get('/api/test-telegram', async (req, res) => {
+    // Cron mantığını test etmek için manuel tetikleyici
+    const bugun = new Date();
+    const yarin = new Date(bugun);
+    yarin.setDate(bugun.getDate() + 1);
+    
+    const offset = yarin.getTimezoneOffset() * 60000; 
+    const teslimTarihi = new Date(yarin.getTime() - offset).toISOString().split('T')[0];
+
+    try {
+        const result = await pool.query("SELECT * FROM siparisler WHERE teslim_tarihi = $1", [teslimTarihi]);
+        if (result.rows.length > 0) {
+            let mesaj = `📋 *YARINKİ TESLİMATLAR*\n--------------------------\n`;
+            
+            result.rows.forEach((sip) => {
+                let urunGoster = sip.kategori;
+                if (sip.urunler) {
+                    try {
+                        const parsedUrunler = JSON.parse(sip.urunler);
+                        if (parsedUrunler.length > 0) {
+                            urunGoster = parsedUrunler.map(u => u.kategori).join(', ');
+                        }
+                    } catch (e) {}
+                }
+                urunGoster = urunGoster || 'Belirsiz';
+                
+                mesaj += `- *${sip.musteri_adi}* - ${urunGoster}\n`;
+            });
+
+            bot.sendMessage(TELEGRAM_CHAT_ID, mesaj, { parse_mode: 'Markdown' });
+            res.send(`Yarın (${teslimTarihi}) için ${result.rows.length} adet sipariş bulundu ve bildirimi gönderildi.`);
+        } else {
+            res.send(`Yarın (${teslimTarihi}) için teslimat bulunamadı.`);
+        }
+    } catch (e) {
+        res.send("Hata: " + e.message);
+    }
+});
+
 // --- VERİTABANI OLUŞTURMA ---
 const initDb = async () => {
     try {
@@ -43,7 +140,7 @@ const initDb = async () => {
         // Hatırlatıcılar
         await pool.query(`CREATE TABLE IF NOT EXISTS hatirlaticilar (id SERIAL PRIMARY KEY, not_icerik TEXT NOT NULL, tarih DATE NOT NULL);`);
         
-        // STOKLAR TABLOSU (GÜNCELLENDİ: Alış Tarihi)
+        // STOKLAR TABLOSU
         await pool.query(`
             CREATE TABLE IF NOT EXISTS stoklar (
                 id SERIAL PRIMARY KEY,
@@ -58,11 +155,10 @@ const initDb = async () => {
             );
         `);
         
-        // Yeni sütunları ekle (Migration)
         await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
-        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`); // YENİ
+        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`);
 
-        console.log("✅ Veritabanı Hazır (Alış Tarihi Dahil).");
+        console.log("✅ Veritabanı Hazır.");
     } catch (err) { console.error("❌ Veritabanı hatası:", err); }
 };
 initDb();
@@ -94,7 +190,7 @@ app.put('/api/siparisler/:id', loginKontrol, upload.array('yeni_gorseller', 10),
 });
 app.delete('/api/siparisler/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM siparisler WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// --- STOKLAR API (GÜNCELLENDİ: Alış Tarihi) ---
+// --- STOKLAR API ---
 app.get('/api/stoklar', loginKontrol, async (req, res) => { 
     try { const r = await pool.query('SELECT * FROM stoklar ORDER BY ekleme_tarihi DESC'); res.json(r.rows); } 
     catch (e) { res.status(500).json({ error: e.message }); } 
@@ -107,7 +203,7 @@ app.post('/api/stoklar', loginKontrol, upload.single('stok_gorseli'), async (req
     top_sayisi = top_sayisi ? parseInt(top_sayisi) : 0;
     metre = metre ? parseFloat(metre) : 0.00;
     alis_fiyati = alis_fiyati ? parseFloat(alis_fiyati) : 0.00;
-    if (alis_tarihi === '') alis_tarihi = null; // Tarih seçilmezse null yap
+    if (alis_tarihi === '') alis_tarihi = null;
 
     try {
         const r = await pool.query(

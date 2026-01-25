@@ -378,11 +378,11 @@ function filterOrders() {
     if (!tablo) return;
 
     let filteredData = tumSiparisler.filter(siparis => {
-        // 1. İsim ve Telefon Araması (Mevcut)
+        // 1. İsim ve Telefon Araması
         const isimMatch = siparis.musteri_adi.toLowerCase().includes(searchText);
         const telMatch = siparis.telefon.includes(searchText);
         
-        // 2. Ürün İçeriği Araması (YENİ EKLENDİ)
+        // 2. Ürün İçeriği Araması (Sipariş İçeriğine Göre)
         let urunMatch = false;
         if (siparis.urunler) {
             try {
@@ -405,7 +405,7 @@ function filterOrders() {
             }
         }
 
-        const searchMatch = isimMatch || telMatch || urunMatch; // Ürün araması buraya eklendi
+        const searchMatch = isimMatch || telMatch || urunMatch; 
         const statusMatch = (status === 'Tümü') || (siparis.durum === status);
         return searchMatch && statusMatch;
     });
@@ -699,7 +699,8 @@ function yapHesap() {
                 hesaplananDeger = Math.round(hesaplananDeger * 100) / 100;
                 aciklama = `(En x 2 + 5cm pay)`;
             }
-            ekstraFiyat += 250; // YENİ: Nevresim için +250 TL sabit ekleme
+            // Nevresim için +250 TL sabit ekleme
+            ekstraFiyat += 250; 
             if (aciklama) aciklama += " (+250 TL Dikim)"; else aciklama = "(+250 TL Dikim)";
             break;
         case 'Yastık':
