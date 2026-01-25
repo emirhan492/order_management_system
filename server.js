@@ -2,11 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const session = require('express-session');
+const multer = require('multer'); 
+const path = require('path');     
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -15,119 +18,131 @@ app.use(session({
 }));
 app.use(express.static('public'));
 
+// --- MULTER AYARLARI ---
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => { cb(null, 'public/uploads/'); },
+    filename: (req, file, cb) => { cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname)); }
+});
+const upload = multer({ storage: storage });
+
+// --- DB BAĞLANTISI ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
-// Veritabanı Güncelleme
+// --- VERİTABANI OLUŞTURMA ---
 const initDb = async () => {
     try {
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS siparisler (
-                id SERIAL PRIMARY KEY,
-                musteri_adi VARCHAR(100) NOT NULL,
-                telefon VARCHAR(20),
-                siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                teslim_tarihi DATE,
-                fiyat DECIMAL(10, 2),
-                durum VARCHAR(50) DEFAULT 'Bekliyor',
-                kategori VARCHAR(50),
-                siparis_notu TEXT,
-                odenen_tutar DECIMAL(10, 2) DEFAULT 0
-            );
-        `);
-
-        // Eski tablolarda bu sütun yoksa ekle
+        // Siparişler
+        await pool.query(`CREATE TABLE IF NOT EXISTS siparisler (id SERIAL PRIMARY KEY, musteri_adi VARCHAR(100) NOT NULL, telefon VARCHAR(20), siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP, teslim_tarihi DATE, fiyat DECIMAL(10, 2), durum VARCHAR(50) DEFAULT 'Bekliyor', kategori VARCHAR(50), siparis_notu TEXT, odenen_tutar DECIMAL(10, 2) DEFAULT 0, urunler TEXT, gorsel TEXT);`);
         await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS odenen_tutar DECIMAL(10, 2) DEFAULT 0;`);
+        await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS urunler TEXT;`);
+        await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS gorsel TEXT;`);
         
         // Hatırlatıcılar
+        await pool.query(`CREATE TABLE IF NOT EXISTS hatirlaticilar (id SERIAL PRIMARY KEY, not_icerik TEXT NOT NULL, tarih DATE NOT NULL);`);
+        
+        // STOKLAR TABLOSU (GÜNCELLENDİ: Alış Tarihi)
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS hatirlaticilar (
+            CREATE TABLE IF NOT EXISTS stoklar (
                 id SERIAL PRIMARY KEY,
-                not_icerik TEXT NOT NULL,
-                tarih DATE NOT NULL
+                urun_kodu VARCHAR(50),
+                urun_ismi VARCHAR(100) NOT NULL,
+                top_sayisi INTEGER DEFAULT 0,
+                metre DECIMAL(10, 2) DEFAULT 0,
+                alis_fiyati DECIMAL(10, 2) DEFAULT 0,
+                alis_tarihi DATE,
+                gorsel TEXT,
+                ekleme_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
         
-        console.log("✅ Veritabanı güncellendi (Ödeme sistemi hazır).");
+        // Yeni sütunları ekle (Migration)
+        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
+        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`); // YENİ
+
+        console.log("✅ Veritabanı Hazır (Alış Tarihi Dahil).");
     } catch (err) { console.error("❌ Veritabanı hatası:", err); }
 };
 initDb();
 
-const loginKontrol = (req, res, next) => {
-    if (req.session.admin) { next(); } 
-    else { res.status(401).json({ error: 'Yetkisiz Giriş' }); }
-};
+const loginKontrol = (req, res, next) => { if (req.session.admin) { next(); } else { res.status(401).json({ error: 'Yetkisiz' }); } };
 
-// --- API ROUTES ---
-
-app.post('/api/login', (req, res) => {
-    const { pin } = req.body;
-    if (pin === process.env.ADMIN_PIN) {
-        req.session.admin = true;
-        res.json({ success: true });
-    } else {
-        res.status(401).json({ success: false });
-    }
-});
-
+// --- ROUTES ---
+app.post('/api/login', (req, res) => { const { pin } = req.body; if (pin === process.env.ADMIN_PIN) { req.session.admin = true; res.json({ success: true }); } else { res.status(401).json({ success: false }); } });
 app.get('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 app.get('/api/session-check', (req, res) => { res.json({ loggedIn: !!req.session.admin }); });
 
-app.get('/api/siparisler', loginKontrol, async (req, res) => {
+// Sipariş İşlemleri
+app.get('/api/siparisler', loginKontrol, async (req, res) => { try { const r = await pool.query('SELECT * FROM siparisler ORDER BY siparis_tarihi DESC'); res.json(r.rows); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.post('/api/siparisler', loginKontrol, upload.array('siparis_gorselleri', 10), async (req, res) => {
+    const { musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler } = req.body;
+    let gorseller = []; if (req.files) gorseller = req.files.map(f => f.filename);
+    try { const r = await pool.query(`INSERT INTO siparisler (musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler, gorsel) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler, JSON.stringify(gorseller)]); res.json(r.rows[0]); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/siparisler/:id', loginKontrol, upload.array('yeni_gorseller', 10), async (req, res) => {
+    const { id } = req.params;
+    const { musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, durum, odenen_tutar, urunler, mevcut_gorseller } = req.body;
     try {
-        const result = await pool.query('SELECT * FROM siparisler ORDER BY siparis_tarihi DESC');
-        res.json(result.rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        let kg = []; if (mevcut_gorseller) kg = Array.isArray(mevcut_gorseller) ? mevcut_gorseller : [mevcut_gorseller];
+        let yg = []; if (req.files) yg = req.files.map(f => f.filename);
+        const sonGorsel = JSON.stringify([...kg, ...yg]);
+        const r = await pool.query(`UPDATE siparisler SET musteri_adi=$1, telefon=$2, teslim_tarihi=$3, fiyat=$4, siparis_notu=$5, durum=$6, odenen_tutar=$7, urunler=$8, gorsel=$9 WHERE id=$10 RETURNING *`, [musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, durum, odenen_tutar, urunler, sonGorsel, id]);
+        res.json(r.rows[0]);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/siparisler/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM siparisler WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+
+// --- STOKLAR API (GÜNCELLENDİ: Alış Tarihi) ---
+app.get('/api/stoklar', loginKontrol, async (req, res) => { 
+    try { const r = await pool.query('SELECT * FROM stoklar ORDER BY ekleme_tarihi DESC'); res.json(r.rows); } 
+    catch (e) { res.status(500).json({ error: e.message }); } 
 });
 
-app.post('/api/siparisler', loginKontrol, async (req, res) => {
-    const { musteri_adi, telefon, teslim_tarihi, fiyat, kategori, siparis_notu } = req.body;
+app.post('/api/stoklar', loginKontrol, upload.single('stok_gorseli'), async (req, res) => {
+    let { urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi } = req.body;
+    const gorsel = req.file ? req.file.filename : null;
+    
+    top_sayisi = top_sayisi ? parseInt(top_sayisi) : 0;
+    metre = metre ? parseFloat(metre) : 0.00;
+    alis_fiyati = alis_fiyati ? parseFloat(alis_fiyati) : 0.00;
+    if (alis_tarihi === '') alis_tarihi = null; // Tarih seçilmezse null yap
+
+    try {
+        const r = await pool.query(
+            `INSERT INTO stoklar (urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, 
+            [urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel]
+        );
+        res.json(r.rows[0]);
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/stoklar/:id', loginKontrol, upload.single('stok_gorseli'), async (req, res) => {
+    const { id } = req.params;
+    let { urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, mevcut_gorsel } = req.body;
+    const gorsel = req.file ? req.file.filename : mevcut_gorsel;
+    
+    top_sayisi = top_sayisi ? parseInt(top_sayisi) : 0;
+    metre = metre ? parseFloat(metre) : 0.00;
+    alis_fiyati = alis_fiyati ? parseFloat(alis_fiyati) : 0.00;
+    if (alis_tarihi === '') alis_tarihi = null;
+
     try {
         const result = await pool.query(
-            `INSERT INTO siparisler (musteri_adi, telefon, teslim_tarihi, fiyat, kategori, siparis_notu) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [musteri_adi, telefon, teslim_tarihi, fiyat, kategori, siparis_notu]
+            `UPDATE stoklar SET urun_kodu=$1, urun_ismi=$2, top_sayisi=$3, metre=$4, alis_fiyati=$5, alis_tarihi=$6, gorsel=$7 WHERE id=$8 RETURNING *`,
+            [urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel, id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/siparisler/:id', loginKontrol, async (req, res) => {
-    const { id } = req.params;
-    // YENİ: odenen_tutar eklendi
-    const { musteri_adi, telefon, teslim_tarihi, fiyat, kategori, siparis_notu, durum, odenen_tutar } = req.body;
+app.delete('/api/stoklar/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM stoklar WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-    try {
-        const result = await pool.query(
-            `UPDATE siparisler SET 
-                musteri_adi = $1, 
-                telefon = $2, 
-                teslim_tarihi = $3, 
-                fiyat = $4,
-                kategori = $5,
-                siparis_notu = $6,
-                durum = $7,
-                odenen_tutar = $8
-             WHERE id = $9 RETURNING *`,
-            [musteri_adi, telefon, teslim_tarihi, fiyat, kategori, siparis_notu, durum, odenen_tutar, id]
-        );
-        res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
+// Hatırlatıcılar
+app.get('/api/hatirlaticilar', loginKontrol, async (req, res) => { try { const r = await pool.query('SELECT * FROM hatirlaticilar'); res.json(r.rows); } catch (e) { res.status(500).json({error: e.message}); } });
+app.post('/api/hatirlaticilar', loginKontrol, async (req, res) => { try { await pool.query('INSERT INTO hatirlaticilar (not_icerik, tarih) VALUES ($1, $2)', [req.body.not_icerik, req.body.tarih]); res.json({success:true}); } catch (e) { res.status(500).json({error: e.message}); } });
+app.delete('/api/hatirlaticilar/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM hatirlaticilar WHERE id=$1', [req.params.id]); res.json({success:true}); } catch (e) { res.status(500).json({error: e.message}); } });
 
-app.delete('/api/siparisler/:id', loginKontrol, async (req, res) => {
-    const { id } = req.params;
-    try {
-        await pool.query('DELETE FROM siparisler WHERE id = $1', [id]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Hatırlatıcı API (Kısa tuttum, aynı kalacak)
-app.get('/api/hatirlaticilar', loginKontrol, async (req, res) => { const r = await pool.query('SELECT * FROM hatirlaticilar'); res.json(r.rows); });
-app.post('/api/hatirlaticilar', loginKontrol, async (req, res) => { const {not_icerik, tarih} = req.body; await pool.query('INSERT INTO hatirlaticilar (not_icerik, tarih) VALUES ($1, $2)', [not_icerik, tarih]); res.json({success:true}); });
-app.delete('/api/hatirlaticilar/:id', loginKontrol, async (req, res) => { const {id}=req.params; await pool.query('DELETE FROM hatirlaticilar WHERE id=$1', [id]); res.json({success:true}); });
-
-app.listen(PORT, () => console.log(`🚀 Sunucu http://localhost:${PORT} adresinde çalışıyor...`));
+app.listen(PORT, () => console.log(`🚀 Sunucu http://localhost:${PORT} adresinde hazır.`));

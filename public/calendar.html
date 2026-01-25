@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Takvim</title>
+    <title>Takvim ve Ajanda</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,38 +15,35 @@
             <a href="/" class="btn-geri">🏠 Ana Menü</a>
         </div>
 
-        <div class="calendar-header">
-            <button onclick="changeMonth(-1)">❮ Önceki</button>
-            <h3 id="currentMonthYear">Ocak 2024</h3>
-            <button onclick="changeMonth(1)">Sonraki ❯</button>
-        </div>
-
-        <div class="calendar-grid">
-            <div class="day-name">Pzt</div>
-            <div class="day-name">Sal</div>
-            <div class="day-name">Çar</div>
-            <div class="day-name">Per</div>
-            <div class="day-name">Cum</div>
-            <div class="day-name">Cmt</div>
-            <div class="day-name">Paz</div>
+        <div class="card">
+            <div class="calendar-controls">
+                <button onclick="changeMonth(-1)" class="btn-geri">◀ Önceki</button>
+                <h3 id="currentMonthYear" style="margin:0; color:#2c3e50;">Ocak 2026</h3>
+                <button onclick="changeMonth(1)" class="btn-geri">Sonraki ▶</button>
             </div>
-        
-        <p style="text-align: center; color: #666; font-size: 14px; margin-top: 10px;">
-            💡 Bir güne hatırlatıcı eklemek için kutucuğa tıklayın.
-        </p>
 
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; text-align: center; font-weight: bold; color: #7f8c8d;">
+                <div>Pzt</div><div>Sal</div><div>Çar</div><div>Per</div><div>Cum</div><div>Cmt</div><div>Paz</div>
+            </div>
+
+            <div class="calendar-grid">
+                </div>
+        </div>
     </div>
+
     <div id="dayModal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
-            <h3 id="modalDateTitle">23 Ocak 2024</h3>
+            <div class="modal-header">
+                <h3 id="modalDateTitle">Tarih</h3>
+                <span class="close-btn" onclick="closeModal()">&times;</span>
+            </div>
             
-            <div id="modalBody" class="modal-body">
+            <div class="modal-body" id="modalBody">
                 </div>
 
-            <div class="modal-footer">
-                <input type="text" id="modalNoteInput" placeholder="Yeni hatırlatıcı yaz..." />
-                <button onclick="saveModalNote()" class="btn-modal-ekle">Ekle</button>
+            <div class="modal-footer" style="display:flex; gap:10px;">
+                <input type="text" id="modalNoteInput" placeholder="Bugüne not ekle..." style="flex:1;">
+                <button onclick="saveModalNote()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px;">Ekle</button>
             </div>
         </div>
     </div>

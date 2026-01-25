@@ -3,54 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow"> 
-    <title>Sipariş Takip Sistemi</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>Papatya Order - Ana Menü</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+
+    <div id="loginEkrani" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#2c3e50; display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div style="background:white; padding:40px; border-radius:10px; text-align:center; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+            <div style="font-size:50px; margin-bottom:10px;">📦</div>
+            <h2 style="color:#333; margin-bottom:20px;">Personel Girişi</h2>
+            <input type="password" id="pinInput" placeholder="PIN Kodu" style="font-size:24px; text-align:center; letter-spacing:5px; margin-bottom:20px;">
+            <button onclick="girisYap()" style="width:100%; padding:15px; font-size:18px; background:#27ae60; color:white; border:none; border-radius:5px; cursor:pointer;">Giriş Yap</button>
+            <p id="loginHata" style="color:red; margin-top:10px; display:none;">Hatalı PIN!</p>
+        </div>
+    </div>
+
+    <div id="dashboard" class="container" style="display:none;">
         
-        <div id="loginEkrani" class="card" style="text-align: center; max-width: 400px; margin: 50px auto;">
-            <h2>🔐 Giriş Yap</h2>
-            <p>Panele erişmek için PIN girin.</p>
-            <input type="password" id="pinInput" placeholder="######" maxlength="6" style="text-align: center; font-size: 24px; letter-spacing: 5px; width: 60%;">
-            <br><br>
-            <button onclick="girisYap()">GİRİŞ</button>
-            <p id="loginHata" style="color: red; display: none;">Hatalı PIN!</p>
+        <div class="app-header">
+            <div style="font-size: 60px;">📦</div>
+            <h1 class="app-title">Papatya Order</h1>
+            <p style="color:#7f8c8d;">Sipariş ve Üretim Takip Sistemi</p>
         </div>
 
-        <div id="dashboard" style="display: none; max-width: 500px; margin: 0 auto;">
-            
-            <h1 style="text-align: center; margin-bottom: 30px;">📦 Papatya Order</h1>
+        <div class="dashboard-grid">
+            <a href="new-order.html" class="menu-card card-blue">
+                <span class="menu-icon">➕</span>
+                <span class="menu-title">Yeni Sipariş</span>
+            </a>
+            <a href="orders.html" class="menu-card card-orange">
+                <span class="menu-icon">📋</span>
+                <span class="menu-title">Mevcut Siparişler</span>
+            </a>
+            <a href="calendar.html" class="menu-card card-purple">
+                <span class="menu-icon">📅</span>
+                <span class="menu-title">Takvim & Ajanda</span>
+            </a>
+            <a href="calculate.html" class="menu-card card-green">
+                <span class="menu-icon">🧮</span>
+                <span class="menu-title">Fiyat Hesapla</span>
+            </a>
+            <a href="stock.html" class="menu-card card-orange" style="border-bottom-color: #d35400;">
+                <span class="menu-icon">📦</span>
+                <span class="menu-title">Stok Takip</span>
+            </a>
 
-            <div class="menu-container">
-                
-                <a href="new-order.html" class="menu-btn btn-blue">
-                    <span style="font-size: 24px;">➕</span>
-                    <span>Yeni Sipariş Oluştur</span>
-                </a>
-
-                <a href="orders.html" class="menu-btn btn-green">
-                    <span style="font-size: 24px;">📋</span>
-                    <span>Mevcut Siparişler</span>
-                </a>
-                
-                 <a href="calendar.html" class="menu-btn" style="background-color: #9b59b6;">
-                    <span style="font-size: 24px;">📅</span>
-                    <span>Takvim & Ajanda</span>
-                </a>
-
-                <button onclick="cikisYap()" class="menu-btn btn-gray">
-                    <span style="font-size: 24px;">🚪</span>
-                    <span>Çıkış Yap</span>
-                </button>
-
-               
-
+            <div onclick="cikisYap()" class="menu-card card-red" style="cursor:pointer;">
+                <span class="menu-icon">🚪</span>
+                <span class="menu-title">Çıkış Yap</span>
             </div>
         </div>
-
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
