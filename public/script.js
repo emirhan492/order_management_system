@@ -378,9 +378,34 @@ function filterOrders() {
     if (!tablo) return;
 
     let filteredData = tumSiparisler.filter(siparis => {
+        // 1. İsim ve Telefon Araması (Mevcut)
         const isimMatch = siparis.musteri_adi.toLowerCase().includes(searchText);
         const telMatch = siparis.telefon.includes(searchText);
-        const searchMatch = isimMatch || telMatch;
+        
+        // 2. Ürün İçeriği Araması (YENİ EKLENDİ)
+        let urunMatch = false;
+        if (siparis.urunler) {
+            try {
+                const urunler = JSON.parse(siparis.urunler);
+                // Ürün listesindeki kategori veya detayda aranan kelime var mı?
+                urunMatch = urunler.some(u => 
+                    u.kategori.toLowerCase().includes(searchText) || 
+                    (u.detay && u.detay.toLowerCase().includes(searchText))
+                );
+            } catch (e) {
+                // Eğer JSON parse edilemezse veya eski veri tipindeyse
+                if (siparis.kategori && siparis.kategori.toLowerCase().includes(searchText)) {
+                    urunMatch = true;
+                }
+            }
+        } else {
+            // urunler sütunu boşsa, kategoriye bak (Eski kayıtlar için)
+            if (siparis.kategori && siparis.kategori.toLowerCase().includes(searchText)) {
+                urunMatch = true;
+            }
+        }
+
+        const searchMatch = isimMatch || telMatch || urunMatch; // Ürün araması buraya eklendi
         const statusMatch = (status === 'Tümü') || (siparis.durum === status);
         return searchMatch && statusMatch;
     });
@@ -522,7 +547,6 @@ function openDetailModal(siparis) {
 
         <div style="margin-top:20px; padding:10px; background:#fff3cd; border-radius:5px; color:#856404; font-size:13px;"><strong>📝 Not:</strong> ${siparis.siparis_notu || '-'}</div>
     `;
-    // ORTALAMA DÜZELTMESİ: block yerine flex
     modal.style.display = 'flex';
 }
 
@@ -567,7 +591,6 @@ function openEditModal(siparis) {
     }
 
     fiyatHesapla('edit');
-    // ORTALAMA DÜZELTMESİ: block yerine flex
     modal.style.display = 'flex';
 }
 
@@ -676,6 +699,8 @@ function yapHesap() {
                 hesaplananDeger = Math.round(hesaplananDeger * 100) / 100;
                 aciklama = `(En x 2 + 5cm pay)`;
             }
+            ekstraFiyat += 250; // YENİ: Nevresim için +250 TL sabit ekleme
+            if (aciklama) aciklama += " (+250 TL Dikim)"; else aciklama = "(+250 TL Dikim)";
             break;
         case 'Yastık':
             birim = "mt"; 
@@ -872,7 +897,6 @@ function openModal(dateStr, siparisler, notlar) {
         body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #9b59b6; padding:5px; margin-bottom:5px; background:#fff;"><span>📌 ${not.not_icerik}</span><button class="btn-sil" onclick="notSil(${not.id})" style="float:right; padding:2px 5px;">Sil</button></div>`; 
     });
     
-    // ORTALAMA DÜZELTMESİ: block yerine flex
     modal.style.display = 'flex';
 }
 
