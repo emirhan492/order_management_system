@@ -6,21 +6,22 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Sipariş Listesi</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="page-header">
             <h2>📋 Sipariş Listesi</h2>
-            <a href="/" class="btn-geri">🏠 Ana Menü</a>
+            <a href="/" class="btn-secondary">🏠 Ana Menü</a>
         </div>
 
         <div class="card">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
-                <div style="flex: 3; min-width: 200px;">
-                    <input type="text" id="searchInput" placeholder="🔍 Müşteri Adı veya Telefon Ara..." onkeyup="filterOrders()">
+            <div class="filter-bar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Müşteri, Telefon veya Ürün Ara..." onkeyup="filterOrders()">
                 </div>
-                <div style="flex: 1; min-width: 150px;">
+                <div class="status-box">
                     <select id="statusFilter" onchange="filterOrders()">
                         <option value="Tümü">Tüm Durumlar</option>
                         <option value="Bekliyor">Bekliyor</option>
@@ -31,7 +32,7 @@
                 </div>
             </div>
 
-            <div style="overflow-x: auto;">
+            <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
@@ -43,7 +44,8 @@
                             <th>İşlem</th>
                         </tr>
                     </thead>
-                    <tbody id="siparisTablosu"></tbody>
+                    <tbody id="siparisTablosu">
+                        </tbody>
                 </table>
             </div>
         </div>
@@ -60,72 +62,72 @@
                 <form id="editForm" onsubmit="updateSiparis(event)">
                     <input type="hidden" id="editId">
                     
-                    <div class="form-group">
-                        <label>Müşteri Bilgileri</label>
-                        <div style="display: flex; gap: 10px;">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Ad Soyad</label>
                             <input type="text" id="editMusteri" placeholder="Ad Soyad" required>
+                        </div>
+                        <div class="form-group half">
+                            <label>Telefon</label>
                             <input type="text" id="editTelefon" placeholder="Telefon" required>
                         </div>
                     </div>
 
-                    <div class="form-group" style="background: #f9f9f9; padding: 15px; border-radius: 6px; border:1px solid #eee;">
-                        <label style="color:#2c3e50; margin-bottom:10px;">📦 Sipariş Ürünleri</label>
+                    <div class="product-section">
+                        <label class="section-title">📦 Sipariş Ürünleri</label>
+                        <div id="editUrunListesiContainer" class="urun-container"></div>
                         
-                        <div id="editUrunListesiContainer" class="urun-listesi-kapsayici"></div>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; gap: 10px; flex-wrap: wrap;">
-                            <button type="button" class="btn-urun-ekle" onclick="satirEkle('edit')" style="flex: 1; min-width: 150px; background:#3498db; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
-                                + Yeni Ürün Satırı Ekle
-                            </button>
-                            
-                            <div style="font-weight: bold; color:#27ae60; font-size: 1.1em;">
+                        <div class="product-actions">
+                            <button type="button" class="btn-add-row" onclick="satirEkle('edit')">+ Satır Ekle</button>
+                            <div class="price-display">
                                 Toplam: <span id="editToplamFiyatGoster">0</span> TL
                                 <input type="hidden" id="editFiyat">
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group" style="background: #fff8e1; padding: 15px; border-radius: 6px; border:1px solid #ffe0b2;">
-                        <label style="color:#e67e22;">📷 Görseller</label>
+                    <div class="image-section">
+                        <label class="section-title">📷 Görseller</label>
                         <div id="editMevcutGorseller" class="gallery-grid"></div>
-                        <input type="file" id="editYeniGorseller" multiple accept="image/*" style="margin-top:10px; font-size:12px;">
+                        <input type="file" id="editYeniGorseller" multiple accept="image/*" class="file-input">
                     </div>
 
-                    <div class="form-group">
-                        <label>Durum</label>
-                        <select id="editDurum">
-                            <option value="Bekliyor">Bekliyor</option>
-                            <option value="Hazırlanıyor">Hazırlanıyor</option>
-                            <option value="Teslim Edildi">Teslim Edildi</option>
-                            <option value="Sipariş Tamamlandı">Sipariş Tamamlandı</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Durum</label>
+                            <select id="editDurum">
+                                <option value="Bekliyor">Bekliyor</option>
+                                <option value="Hazırlanıyor">Hazırlanıyor</option>
+                                <option value="Teslim Edildi">Teslim Edildi</option>
+                                <option value="Sipariş Tamamlandı">Sipariş Tamamlandı</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label>Teslim Tarihi</label>
+                            <input type="date" id="editTarih" required>
+                        </div>
                     </div>
 
-                    <div class="form-group" style="background: #eefcf3; padding: 10px; border-radius: 6px;">
-                        <label>Ödeme</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="payment-section">
+                        <label>Ödeme Durumu</label>
+                        <div class="payment-row">
                             <input type="number" id="editOdenen" placeholder="Alınan Tutar (TL)">
-                            <label style="display: flex; align-items: center; gap: 5px; font-weight:normal; margin:0; cursor:pointer;">
-                                <input type="checkbox" id="editTamamiOdendi" style="width:auto;"> Tamamı
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="editTamamiOdendi"> Tamamı Alındı
                             </label>
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label>Teslim Tarihi</label>
-                        <input type="date" id="editTarih" required>
-                    </div>
-
-                    <div class="form-group">
                         <label>Notlar</label>
-                        <textarea id="editNot" rows="3" placeholder="Genel notlar..."></textarea>
+                        <textarea id="editNot" rows="3" placeholder="Sipariş notları..."></textarea>
                     </div>
                 </form>
             </div>
 
             <div class="modal-footer">
-                <button type="button" onclick="closeEditModal()" style="background:#95a5a6; color:white; border:none; padding:10px 20px; border-radius:4px; margin-right:10px;">İptal</button>
-                <button type="button" onclick="document.getElementById('editForm').dispatchEvent(new Event('submit'))" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:4px;">💾 Değişiklikleri Kaydet</button>
+                <button type="button" class="btn-cancel" onclick="closeEditModal()">İptal</button>
+                <button type="button" class="btn-save" onclick="document.getElementById('editForm').dispatchEvent(new Event('submit'))">💾 Kaydet</button>
             </div>
         </div>
     </div>
@@ -133,23 +135,19 @@
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>📄 Sipariş Detayı</h3>
+                <h3>📄 Sipariş Özeti</h3>
                 <span class="close-btn" onclick="closeDetailModal()">&times;</span>
             </div>
-            
             <div id="detailContent" class="modal-body"></div>
-
             <div class="modal-footer">
-                <button onclick="closeDetailModal()" style="background:#95a5a6; color:white; border:none; padding:8px 20px; border-radius:4px;">Kapat</button>
+                <button class="btn-cancel" onclick="closeDetailModal()">Kapat</button>
             </div>
         </div>
     </div>
 
-    <div id="imageModal" class="modal" onclick="closeImageModal()">
-        <span class="close-btn" style="position:absolute; top:20px; right:30px; color:white; font-size:40px; z-index:2100;">&times;</span>
-        <div class="modal-content" style="background:transparent; box-shadow:none; border:none; align-items: center; justify-content: center;">
-            <img id="imgViewer" style="max-width:90vw; max-height:90vh; border-radius:5px; object-fit: contain;">
-        </div>
+    <div id="imageModal" class="modal full-screen" onclick="closeImageModal()">
+        <span class="close-btn-fullscreen">&times;</span>
+        <img id="imgViewer">
     </div>
 
     <script src="script.js"></script>

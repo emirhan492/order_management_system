@@ -5,102 +5,170 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stok Takip</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .stok-img { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; }
-        .stok-img:hover { transform: scale(1.1); transition: 0.2s; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="page-header">
             <h2>📦 Stok Listesi</h2>
-            <a href="/" class="btn-geri">🏠 Ana Menü</a>
+            <a href="/" class="btn-secondary">🏠 Ana Menü</a>
         </div>
 
         <div class="card">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
-                <div style="flex: 1; min-width: 200px;">
+            <div class="filter-bar">
+                <div class="search-box">
                     <input type="text" id="searchStock" placeholder="🔍 Ürün Kodu veya İsmi Ara..." onkeyup="filterStocks()">
                 </div>
-                <button onclick="openStockModal()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">+ Ürün Ekle</button>
+                <div class="status-box" style="flex: 0 0 auto;">
+                    <button onclick="openStockModal()" class="btn-save" style="width: 100%;">
+                        + Ürün Ekle
+                    </button>
+                </div>
             </div>
 
-            <div style="overflow-x: auto;">
+            <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr><th>Görsel</th><th>Ürün Kodu</th><th>Ürün İsmi</th><th>Miktar</th><th>Alış Fiyatı</th><th>Alış Tarihi</th><th>İşlem</th></tr>
+                        <tr>
+                            <th style="width: 60px;">Görsel</th>
+                            <th>Ürün Kodu</th>
+                            <th>Ürün İsmi</th>
+                            <th>Miktar</th>
+                            <th>Alış Fiyatı</th>
+                            <th>Alış Tarihi</th>
+                            <th>İşlem</th>
+                        </tr>
                     </thead>
-                    <tbody id="stokTablosu"></tbody>
+                    <tbody id="stokTablosu">
+                        </tbody>
                 </table>
             </div>
         </div>
     </div>
 
     <div id="stockModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header"><h3>📦 Yeni Ürün Ekle</h3><span class="close-btn" onclick="closeStockModal()">&times;</span></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📦 Yeni Ürün Ekle</h3>
+                <span class="close-btn" onclick="closeStockModal()">&times;</span>
+            </div>
+            
             <div class="modal-body">
                 <form id="stockForm">
-                    <div class="form-group"><label>Ürün Kodu</label><input type="text" id="urun_kodu" required></div>
-                    <div class="form-group"><label>Ürün İsmi</label><input type="text" id="urun_ismi" required></div>
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex:1;"><label>Kaç Top?</label><input type="number" id="top_sayisi"></div>
-                        <div class="form-group" style="flex:1;"><label>Kaç Metre?</label><input type="number" id="metre" step="0.01"></div>
+                    <div class="form-group">
+                        <label>Ürün Kodu</label>
+                        <input type="text" id="urun_kodu" required placeholder="Örn: STK-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Ürün İsmi</label>
+                        <input type="text" id="urun_ismi" required placeholder="Örn: Zebra Perde Kumaşı">
                     </div>
                     
-                    <div style="display: flex; gap: 10px; background:#e8f8f5; padding:10px; border-radius:5px; margin-bottom:10px;">
-                        <div class="form-group" style="flex:1; margin:0;"><label>Alış Fiyatı (TL)</label><input type="number" id="alis_fiyati" step="0.01"></div>
-                        <div class="form-group" style="flex:1; margin:0;"><label>Alış Tarihi</label><input type="date" id="alis_tarihi"></div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Kaç Top?</label>
+                            <input type="number" id="top_sayisi" placeholder="0">
+                        </div>
+                        <div class="form-group half">
+                            <label>Kaç Metre?</label>
+                            <input type="number" id="metre" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                    
+                    <div class="payment-section">
+                        <label class="section-title">Maliyet Bilgileri</label>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label>Alış Fiyatı (TL)</label>
+                                <input type="number" id="alis_fiyati" step="0.01">
+                            </div>
+                            <div class="form-group half">
+                                <label>Alış Tarihi</label>
+                                <input type="date" id="alis_tarihi">
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="form-group"><label>Ürün Fotoğrafı</label><input type="file" id="stok_gorseli" accept="image/*"></div>
+                    <div class="image-section">
+                        <label>Ürün Fotoğrafı</label>
+                        <input type="file" id="stok_gorseli" accept="image/*" class="file-input">
+                    </div>
                 </form>
             </div>
+
             <div class="modal-footer">
-                <button onclick="closeStockModal()" style="background:#95a5a6; color:white; border:none; padding:10px 20px; border-radius:4px;">İptal</button>
-                <button onclick="addStok()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px;">Kaydet</button>
+                <button onclick="closeStockModal()" class="btn-cancel">İptal</button>
+                <button onclick="addStok()" class="btn-save">Kaydet</button>
             </div>
         </div>
     </div>
 
     <div id="editStockModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header"><h3>✏️ Stok Düzenle</h3><span class="close-btn" onclick="closeEditStockModal()">&times;</span></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Stok Düzenle</h3>
+                <span class="close-btn" onclick="closeEditStockModal()">&times;</span>
+            </div>
+            
             <div class="modal-body">
                 <form id="editStockForm">
                     <input type="hidden" id="edit_stok_id">
                     <input type="hidden" id="edit_mevcut_gorsel">
-                    <div class="form-group"><label>Ürün Kodu</label><input type="text" id="edit_urun_kodu" required></div>
-                    <div class="form-group"><label>Ürün İsmi</label><input type="text" id="edit_urun_ismi" required></div>
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex:1;"><label>Kaç Top?</label><input type="number" id="edit_top_sayisi"></div>
-                        <div class="form-group" style="flex:1;"><label>Kaç Metre?</label><input type="number" id="edit_metre" step="0.01"></div>
+                    
+                    <div class="form-group">
+                        <label>Ürün Kodu</label>
+                        <input type="text" id="edit_urun_kodu" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ürün İsmi</label>
+                        <input type="text" id="edit_urun_ismi" required>
                     </div>
                     
-                    <div style="display: flex; gap: 10px; background:#e8f8f5; padding:10px; border-radius:5px; margin-bottom:10px;">
-                        <div class="form-group" style="flex:1; margin:0;"><label>Alış Fiyatı (TL)</label><input type="number" id="edit_alis_fiyati" step="0.01"></div>
-                        <div class="form-group" style="flex:1; margin:0;"><label>Alış Tarihi</label><input type="date" id="edit_alis_tarihi"></div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Kaç Top?</label>
+                            <input type="number" id="edit_top_sayisi">
+                        </div>
+                        <div class="form-group half">
+                            <label>Kaç Metre?</label>
+                            <input type="number" id="edit_metre" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="payment-section">
+                        <label class="section-title">Maliyet Bilgileri</label>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label>Alış Fiyatı (TL)</label>
+                                <input type="number" id="edit_alis_fiyati" step="0.01">
+                            </div>
+                            <div class="form-group half">
+                                <label>Alış Tarihi</label>
+                                <input type="date" id="edit_alis_tarihi">
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="form-group" style="background:#fff3e0; padding:10px; border-radius:5px;">
-                        <label style="color:#e67e22;">📷 Görseli Değiştir</label>
+                    <div class="image-section">
+                        <label>Görseli Değiştir</label>
                         <div id="editStokImagePreview" style="margin-bottom:10px;"></div>
-                        <input type="file" id="edit_stok_gorseli" accept="image/*" style="font-size:12px;">
+                        <input type="file" id="edit_stok_gorseli" accept="image/*" class="file-input">
                     </div>
                 </form>
             </div>
+
             <div class="modal-footer">
-                <button onclick="closeEditStockModal()" style="background:#95a5a6; color:white; border:none; padding:10px 20px; border-radius:4px;">İptal</button>
-                <button onclick="updateStok()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:4px;">Değişiklikleri Kaydet</button>
+                <button onclick="closeEditStockModal()" class="btn-cancel">İptal</button>
+                <button onclick="updateStok()" class="btn-save">Değişiklikleri Kaydet</button>
             </div>
         </div>
     </div>
 
-    <div id="imageModal" class="modal" onclick="closeImageModal()">
-        <span class="close-btn" style="position:absolute; top:20px; right:30px; color:white; font-size:40px; z-index:1001;">&times;</span>
-        <div class="modal-content" style="background:transparent; box-shadow:none; border:none;">
-            <img id="imgViewer" style="max-width:90vw; max-height:90vh; border-radius:5px;">
+    <div id="imageModal" class="modal full-screen" onclick="closeImageModal()">
+        <span class="close-btn-fullscreen">&times;</span>
+        <div class="modal-content" style="background:transparent; box-shadow:none; border:none; align-items: center; justify-content: center;">
+            <img id="imgViewer" style="max-width:90vw; max-height:90vh; border-radius:8px; object-fit: contain;">
         </div>
     </div>
 

@@ -4,29 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Toplu Fiyat Hesapla</title>
+    <title>Fiyat Hesapla</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Ekranı ikiye bölen stil */
+        /* Sadece bu sayfaya özel yerleşim ayarları */
         .calc-wrapper { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
         .calc-left { flex: 1; min-width: 300px; }
         .calc-right { flex: 1; min-width: 300px; }
         
-        /* Sağdaki liste stili */
-        .order-list { list-style: none; padding: 0; margin: 0; border: 1px solid #ddd; border-radius: 5px; background: #fff; max-height: 500px; overflow-y: auto; }
-        .order-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .order-list { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; max-height: 400px; overflow-y: auto; }
+        .order-item { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .order-item:last-child { border-bottom: none; }
-        .order-item div { flex: 1; }
-        .del-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-left: 10px; font-size: 12px; }
-        .total-box { background: #2c3e50; color: white; padding: 15px; border-radius: 5px; margin-top: 10px; text-align: center; }
+        
+        .total-box { background: #1e293b; color: white; padding: 20px; border-radius: 12px; margin-top: 15px; text-align: center; box-shadow: var(--shadow); }
+        .result-box { text-align: center; margin-top: 15px; padding: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="page-header">
             <h2>🧮 Toplu Sipariş Hesaplayıcı</h2>
-            <a href="/" class="btn-geri">🏠 Ana Menü</a>
+            <a href="/" class="btn-secondary">🏠 Ana Menü</a>
         </div>
 
         <div class="calc-wrapper">
@@ -34,8 +34,8 @@
             <div class="calc-left">
                 <div class="card">
                     <div class="form-group">
-                        <label style="font-weight: bold;">Ürün Türü:</label>
-                        <select id="calcKategori" onchange="yapHesap()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <label>Ürün Türü</label>
+                        <select id="calcKategori" onchange="yapHesap()">
                             <option value="Zebra">Zebra Perde</option>
                             <option value="Stor">Stor Perde</option>
                             <option value="Tül">Tül Perde</option>
@@ -47,77 +47,77 @@
                         </select>
                     </div>
 
-                    <div id="pileSecenekleri" style="display: none; background: #e8f6f3; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #d1f2eb;">
-                        <label style="font-weight: bold; color: #16a085;">Tül Pile:</label>
-                        <div style="display: flex; gap: 10px; margin-top:5px;">
-                            <label><input type="radio" name="pileOrani" value="3" onchange="yapHesap()" checked> Sık (x3)</label>
-                            <label><input type="radio" name="pileOrani" value="2.5" onchange="yapHesap()"> Orta (x2.5)</label>
-                            <label><input type="radio" name="pileOrani" value="2" onchange="yapHesap()"> Seyrek (x2)</label>
+                    <div id="pileSecenekleri" style="display: none; margin-bottom: 15px;" class="image-section">
+                        <label style="color:var(--primary); font-weight:bold;">Tül Pile Sıklığı</label>
+                        <div class="radio-group">
+                            <label class="radio-label"><input type="radio" name="pileOrani" value="3" onchange="yapHesap()" checked> <span>Sık (x3)</span></label>
+                            <label class="radio-label"><input type="radio" name="pileOrani" value="2.5" onchange="yapHesap()"> <span>Orta (x2.5)</span></label>
+                            <label class="radio-label"><input type="radio" name="pileOrani" value="2" onchange="yapHesap()"> <span>Seyrek (x2)</span></label>
                         </div>
                     </div>
 
-                    <div id="storSecenekleri" style="display: none; background: #fff8e1; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffecb3;">
-                        <label style="font-weight: bold; color: #f39c12;">Ekstralar:</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top:5px;">
-                            <label style="font-size:13px;"><input type="checkbox" id="optEtek" onchange="yapHesap()"> Etek (+100)</label>
-                            <label style="font-size:13px;"><input type="checkbox" id="optBoncuk" onchange="yapHesap()"> Boncuk (+200)</label>
-                            <label style="font-size:13px;"><input type="checkbox" id="optLazer" onchange="yapHesap()"> Lazer (+400)</label>
-                            <label style="font-size:13px;"><input type="checkbox" id="optCita" onchange="yapHesap()"> Çıta (+1300)</label>
+                    <div id="storSecenekleri" style="display: none; margin-bottom: 15px;" class="image-section">
+                        <label style="color:#d97706; font-weight:bold;">Ekstralar</label>
+                        <div class="radio-group">
+                            <label class="radio-label"><input type="checkbox" id="optEtek" onchange="yapHesap()"> <span>Etek (+100)</span></label>
+                            <label class="radio-label"><input type="checkbox" id="optBoncuk" onchange="yapHesap()"> <span>Boncuk (+200)</span></label>
+                            <label class="radio-label"><input type="checkbox" id="optLazer" onchange="yapHesap()"> <span>Lazer (+400)</span></label>
+                            <label class="radio-label"><input type="checkbox" id="optCita" onchange="yapHesap()"> <span>Çıta (+1300)</span></label>
                         </div>
                     </div>
 
-                    <div id="carsafSecenekleri" style="display: none; background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #bbdefb;">
-                        <label style="font-weight: bold; color: #1565c0;">Tip:</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top:5px;">
-                            <label style="font-size:13px;"><input type="radio" name="carsafTip" value="cift" onchange="yapHesap()" checked> Çift (2.5m)</label>
-                            <label style="font-size:13px;"><input type="radio" name="carsafTip" value="tek" onchange="yapHesap()"> Tek (1.8m)</label>
-                            <label style="font-size:13px;"><input type="radio" name="carsafTip" value="lastik" onchange="yapHesap()"> Lastik (2.85m)</label>
-                            <label style="font-size:13px;"><input type="radio" name="carsafTip" value="diger" onchange="yapHesap()"> Diğer</label>
+                    <div id="carsafSecenekleri" style="display: none; margin-bottom: 15px;" class="image-section">
+                        <label style="color:#0369a1; font-weight:bold;">Çarşaf Tipi</label>
+                        <div class="radio-group">
+                            <label class="radio-label"><input type="radio" name="carsafTip" value="cift" onchange="yapHesap()" checked> <span>Çift (2.5m)</span></label>
+                            <label class="radio-label"><input type="radio" name="carsafTip" value="tek" onchange="yapHesap()"> <span>Tek (1.8m)</span></label>
+                            <label class="radio-label"><input type="radio" name="carsafTip" value="lastik" onchange="yapHesap()"> <span>Lastik (2.85m)</span></label>
+                            <label class="radio-label"><input type="radio" name="carsafTip" value="diger" onchange="yapHesap()"> <span>Diğer</span></label>
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label style="font-weight: bold;">En (cm):</label>
-                            <input type="number" id="calcEn" placeholder="200" oninput="yapHesap()" style="width: 100%; padding: 10px; box-sizing: border-box;">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>En (cm)</label>
+                            <input type="number" id="calcEn" placeholder="200" oninput="yapHesap()">
                         </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label style="font-weight: bold;">Boy (cm):</label>
-                            <input type="number" id="calcBoy" placeholder="250" oninput="yapHesap()" style="width: 100%; padding: 10px; box-sizing: border-box;">
+                        <div class="form-group half">
+                            <label>Boy (cm)</label>
+                            <input type="number" id="calcBoy" placeholder="250" oninput="yapHesap()">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label style="font-weight: bold;">Birim Fiyat (TL):</label>
-                        <input type="number" id="calcBirimFiyat" placeholder="450" oninput="yapHesap()" style="width: 100%; padding: 10px; box-sizing: border-box;">
+                        <label>Birim Fiyat (TL)</label>
+                        <input type="number" id="calcBirimFiyat" placeholder="450" oninput="yapHesap()">
                     </div>
 
-                    <div style="text-align: center; margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 5px;">
-                        <span id="sonucM2" style="font-weight:bold; color:#555;">0 m²</span> - 
-                        <span id="sonucFiyat" style="font-weight:bold; color:#27ae60; font-size: 18px;">0 TL</span>
-                        <div id="hesapAciklama" style="font-size:11px; color:orange;"></div>
+                    <div class="result-box">
+                        <span id="sonucM2" style="font-weight:bold; color:#64748b; font-size:1.1rem;">0 m²</span>
+                        <div style="font-size:1.5rem; font-weight:bold; color:var(--primary); margin:5px 0;" id="sonucFiyat">0 TL</div>
+                        <div id="hesapAciklama" style="font-size:0.85rem; color:#d97706;"></div>
                     </div>
 
-                    <button onclick="listeyeEkle()" style="width: 100%; margin-top: 15px; background-color: #f39c12; color: white; border: none; border-radius: 5px; padding: 12px; font-weight: bold; cursor: pointer;">
+                    <button onclick="listeyeEkle()" class="btn-save" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 1rem; background:#f59e0b;">
                         ➕ Listeye Ekle
                     </button>
                 </div>
             </div>
 
             <div class="calc-right">
-                <div class="card" style="background: #fdfdfd;">
-                    <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">🛒 Oluşturulan Liste</h3>
+                <div class="card">
+                    <h3 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); font-size: 1.1rem;">🛒 Oluşturulan Liste</h3>
                     
                     <ul id="siparisListesi" class="order-list">
-                        <li style="padding: 20px; text-align: center; color: #999;">Henüz ürün eklenmedi.</li>
+                        <li style="padding: 30px; text-align: center; color: #94a3b8;">Henüz ürün eklenmedi.</li>
                     </ul>
 
                     <div class="total-box">
-                        <small>GENEL TOPLAM</small><br>
-                        <strong id="genelToplam" style="font-size: 24px;">0 TL</strong>
+                        <small style="opacity: 0.8; font-size: 0.85rem;">GENEL TOPLAM</small><br>
+                        <strong id="genelToplam" style="font-size: 2rem;">0 TL</strong>
                     </div>
 
-                    <button onclick="topluSipariseGec()" style="width: 100%; margin-top: 15px; background-color: #27ae60; color: white; border: none; border-radius: 5px; padding: 15px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                    <button onclick="topluSipariseGec()" class="btn-save" style="width: 100%; margin-top: 15px; padding: 15px; font-size: 1.1rem;">
                         ✅ Siparişi Oluştur
                     </button>
                 </div>
