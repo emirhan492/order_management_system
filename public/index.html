@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Papatya Perde</title>
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
@@ -18,22 +19,22 @@
         }
         
         .login-card {
-            background: white; padding: 3rem 2rem; border-radius: 16px;
+            background: var(--bg-card); padding: 3rem 2rem; border-radius: 16px;
             width: 100%; max-width: 400px; text-align: center;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
         .login-icon {
             font-size: 4rem; margin-bottom: 1rem; display: inline-block;
-            background: #f1f5f9; width: 100px; height: 100px; line-height: 100px;
+            background: var(--bg-subtle); width: 100px; height: 100px; line-height: 100px;
             border-radius: 50%; margin-bottom: 1.5rem;
         }
 
         .pin-input-style {
             font-size: 2rem; letter-spacing: 12px; text-align: center; 
-            padding: 15px; margin: 20px 0; border: 2px solid #e2e8f0; 
+            padding: 15px; margin: 20px 0; border: 2px solid var(--border); background: var(--bg-input); 
             border-radius: 12px; transition: all 0.3s; width: 100%;
-            font-weight: bold; color: #334155;
+            font-weight: bold; color: var(--text-main);
         }
         
         .pin-input-style:focus {
@@ -57,9 +58,9 @@
         }
         
         .menu-card {
-            background: white; border-radius: 16px; padding: 2rem 1rem;
+            background: var(--bg-card); border-radius: 16px; padding: 2rem 1rem;
             text-align: center; text-decoration: none;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;
+            box-shadow: var(--shadow); border: 1px solid var(--border);
             transition: all 0.2s ease; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; min-height: 160px;
         }
@@ -68,7 +69,7 @@
         .menu-card:active { transform: scale(0.98); }
         
         .menu-icon { font-size: 3rem; margin-bottom: 10px; display: block; filter: grayscale(0.2); }
-        .menu-title { font-weight: 700; font-size: 1rem; color: #1e293b; }
+        .menu-title { font-weight: 700; font-size: 1rem; color: var(--text-strong); }
     </style>
 </head>
 <body>
@@ -76,8 +77,8 @@
     <div id="loginEkrani">
         <div class="login-card">
             <div class="login-icon">🔐</div>
-            <h2 style="color:#1e293b; margin-bottom:5px; font-size:1.5rem;">Personel Girişi</h2>
-            <p style="color:#64748b; margin-bottom:20px; font-size:0.9rem;">Devam etmek için erişim kodunu giriniz.</p>
+            <h2 style="color:var(--text-strong); margin-bottom:5px; font-size:1.5rem;">Personel Girişi</h2>
+            <p style="color:var(--text-secondary); margin-bottom:20px; font-size:0.9rem;">Devam etmek için erişim kodunu giriniz.</p>
             
             <input type="password" id="pinInput" class="pin-input-style" placeholder="PIN" inputmode="numeric">
             
@@ -85,7 +86,7 @@
                 Giriş Yap
             </button>
             
-            <p id="loginHata" style="color:#ef4444; margin-top:20px; font-weight:600; display:none; background:#fef2f2; padding:10px; border-radius:8px;">
+            <p id="loginHata" style="color:var(--red-text); margin-top:20px; font-weight:600; display:none; background:var(--red-soft); padding:10px; border-radius:8px;">
                 ⚠️ Hatalı PIN Kodu!
             </p>
         </div>
@@ -95,8 +96,8 @@
         
         <div style="text-align:center; padding: 40px 0;">
             <div style="font-size: 4rem; margin-bottom:10px;">🌼</div>
-            <h1 style="color:#0f172a; font-size:1.8rem; margin:0;">Papatya Perde</h1>
-            <p style="color:#64748b; margin-top:5px;">Sipariş ve Üretim Yönetim Paneli</p>
+            <h1 style="color:var(--text-strong); font-size:1.8rem; margin:0;">Papatya Perde</h1>
+            <p style="color:var(--text-secondary); margin-top:5px;">Sipariş ve Üretim Yönetim Paneli</p>
         </div>
 
         <div class="dashboard-grid">

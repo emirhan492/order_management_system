@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Fiyat Hesapla</title>
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -13,12 +14,12 @@
         .calc-left { flex: 1; min-width: 300px; }
         .calc-right { flex: 1; min-width: 300px; }
         
-        .order-list { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; max-height: 400px; overflow-y: auto; }
+        .order-list { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); max-height: 400px; overflow-y: auto; }
         .order-item { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .order-item:last-child { border-bottom: none; }
         
-        .total-box { background: #1e293b; color: white; padding: 20px; border-radius: 12px; margin-top: 15px; text-align: center; box-shadow: var(--shadow); }
-        .result-box { text-align: center; margin-top: 15px; padding: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; }
+        .total-box { background: var(--total-bg); color: white; padding: 20px; border-radius: 12px; margin-top: 15px; text-align: center; box-shadow: var(--shadow); }
+        .result-box { text-align: center; margin-top: 15px; padding: 15px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -57,7 +58,7 @@
                     </div>
 
                     <div id="storSecenekleri" style="display: none; margin-bottom: 15px;" class="image-section">
-                        <label style="color:#d97706; font-weight:bold;">Ekstralar</label>
+                        <label style="color:var(--amber-text); font-weight:bold;">Ekstralar</label>
                         <div class="radio-group">
                             <label class="radio-label"><input type="checkbox" id="optEtek" onchange="yapHesap()"> <span>Etek (+100)</span></label>
                             <label class="radio-label"><input type="checkbox" id="optBoncuk" onchange="yapHesap()"> <span>Boncuk (+200)</span></label>
@@ -67,7 +68,7 @@
                     </div>
 
                     <div id="carsafSecenekleri" style="display: none; margin-bottom: 15px;" class="image-section">
-                        <label style="color:#0369a1; font-weight:bold;">Çarşaf Tipi</label>
+                        <label style="color:var(--sky-text); font-weight:bold;">Çarşaf Tipi</label>
                         <div class="radio-group">
                             <label class="radio-label"><input type="radio" name="carsafTip" value="cift" onchange="yapHesap()" checked> <span>Çift (2.5m)</span></label>
                             <label class="radio-label"><input type="radio" name="carsafTip" value="tek" onchange="yapHesap()"> <span>Tek (1.8m)</span></label>
@@ -93,9 +94,9 @@
                     </div>
 
                     <div class="result-box">
-                        <span id="sonucM2" style="font-weight:bold; color:#64748b; font-size:1.1rem;">0 m²</span>
+                        <span id="sonucM2" style="font-weight:bold; color:var(--text-secondary); font-size:1.1rem;">0 m²</span>
                         <div style="font-size:1.5rem; font-weight:bold; color:var(--primary); margin:5px 0;" id="sonucFiyat">0 TL</div>
-                        <div id="hesapAciklama" style="font-size:0.85rem; color:#d97706;"></div>
+                        <div id="hesapAciklama" style="font-size:0.85rem; color:var(--amber-text);"></div>
                     </div>
 
                     <button onclick="listeyeEkle()" class="btn-save" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 1rem; background:#f59e0b;">
@@ -109,7 +110,7 @@
                     <h3 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); font-size: 1.1rem;">🛒 Oluşturulan Liste</h3>
                     
                     <ul id="siparisListesi" class="order-list">
-                        <li style="padding: 30px; text-align: center; color: #94a3b8;">Henüz ürün eklenmedi.</li>
+                        <li style="padding: 30px; text-align: center; color: var(--text-muted);">Henüz ürün eklenmedi.</li>
                     </ul>
 
                     <div class="total-box">

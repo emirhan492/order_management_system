@@ -96,7 +96,7 @@ function renderStoklar(data) {
     tbody.innerHTML = '';
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#999;">Kayıtlı ürün yok.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">Kayıtlı ürün yok.</td></tr>';
         return;
     }
 
@@ -115,8 +115,8 @@ function renderStoklar(data) {
                 <td>${imgHTML}</td>
                 <td><strong>${esc(item.urun_kodu || '-')}</strong></td>
                 <td>${esc(item.urun_ismi)}</td>
-                <td><span style="background:#e8f6f3; color:#16a085; padding:3px 8px; border-radius:4px; font-weight:bold;">${esc(item.top_sayisi)} Top / ${esc(item.metre)} mt</span></td>
-                <td><span style="color:#d35400; font-weight:bold;">${esc(item.alis_fiyati)} TL</span></td>
+                <td><span style="background:var(--teal-soft); color:var(--teal-text); padding:3px 8px; border-radius:4px; font-weight:bold;">${esc(item.top_sayisi)} Top / ${esc(item.metre)} mt</span></td>
+                <td><span style="color:var(--price-text); font-weight:bold;">${esc(item.alis_fiyati)} TL</span></td>
                 <td>${tarihGoster}</td>
                 <td>
                     <button class="btn-duzenle" onclick="openEditStockModal(${id})">Düzenle</button>
@@ -224,11 +224,11 @@ function renderStokGorselOnizleme(g) {
     if (g) {
         preview.innerHTML = `
             <div class="gallery-item" style="display:inline-block;">
-                <img src="${esc(gorselUrl(g, 120))}" style="height:60px; border-radius:4px; border:1px solid #ccc;">
+                <img src="${esc(gorselUrl(g, 120))}" style="height:60px; border-radius:4px; border:1px solid var(--border-strong);">
                 <button type="button" class="img-delete-btn" onclick="stokGorselKaldir()" title="Görseli kaldır">×</button>
             </div>`;
     } else {
-        preview.innerHTML = '<small style="color:#999">Görsel yok</small>';
+        preview.innerHTML = '<small style="color:var(--text-muted)">Görsel yok</small>';
     }
 }
 
@@ -482,7 +482,7 @@ function filterOrders() {
     }
 
     tablo.innerHTML = ''; 
-    if (filteredData.length === 0) { tablo.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">Kayıt bulunamadı.</td></tr>'; return; }
+    if (filteredData.length === 0) { tablo.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Kayıt bulunamadı.</td></tr>'; return; }
 
     filteredData.forEach(siparis => {
         const tarih = new Date(siparis.siparis_tarihi).toLocaleDateString('tr-TR');
@@ -506,13 +506,13 @@ function filterOrders() {
         const fiyat = Number(siparis.fiyat);
         const odenen = Number(siparis.odenen_tutar || 0);
         const kalan = fiyat - odenen;
-        let borcHTML = kalan <= 0 ? '<span style="color:green;font-weight:bold;font-size:12px;">✅ Ödendi</span>' : `<span style="color:red;font-weight:bold;font-size:12px;">Kalan: ${esc(kalan)} TL</span>`;
+        let borcHTML = kalan <= 0 ? '<span style="color:var(--green-text);font-weight:bold;font-size:12px;">✅ Ödendi</span>' : `<span style="color:var(--red-text);font-weight:bold;font-size:12px;">Kalan: ${esc(kalan)} TL</span>`;
         const id = Number(siparis.id);
         
-        let durumRenk = '#ecf0f1';
-        if (siparis.durum === 'Teslim Edildi') durumRenk = '#d4edda';
-        if (siparis.durum === 'Sipariş Tamamlandı') durumRenk = '#c3e6cb';
-        if (siparis.durum === 'Hazırlanıyor') durumRenk = '#fff3cd';
+        let durumRenk = 'var(--durum-bekliyor)';
+        if (siparis.durum === 'Teslim Edildi') durumRenk = 'var(--durum-teslim)';
+        if (siparis.durum === 'Sipariş Tamamlandı') durumRenk = 'var(--durum-tamam)';
+        if (siparis.durum === 'Hazırlanıyor') durumRenk = 'var(--durum-hazirlaniyor)';
 
         const satir = `
             <tr onclick="openDetailModal(${id})">
@@ -545,10 +545,10 @@ function openDetailModal(id) {
         if (urunler) {
             urunler.forEach((u, i) => {
                 urunlerHTML += `
-                    <tr style="border-bottom:1px solid #eee;">
+                    <tr style="border-bottom:1px solid var(--border);">
                         <td style="padding:10px;">${i+1}</td>
                         <td style="padding:10px;"><strong>${esc(u.kategori)}</strong></td>
-                        <td style="padding:10px; color:#555;">${esc(u.detay)}</td>
+                        <td style="padding:10px; color:var(--text-secondary);">${esc(u.detay)}</td>
                         <td style="padding:10px; text-align:right; font-weight:bold;">${esc(u.fiyat)} TL</td>
                     </tr>`;
             });
@@ -560,7 +560,7 @@ function openDetailModal(id) {
     let galeriHTML = '';
     const gorseller = gorselListesi(siparis.gorsel);
     if (gorseller.length > 0) {
-        galeriHTML = `<h4 style="margin:20px 0 10px 0; color:#2c3e50;">📸 Görseller</h4><div class="gallery-grid">`;
+        galeriHTML = `<h4 style="margin:20px 0 10px 0; color:var(--text-strong);">📸 Görseller</h4><div class="gallery-grid">`;
         gorseller.forEach(g => {
             galeriHTML += `
                 <div class="gallery-item">
@@ -573,27 +573,27 @@ function openDetailModal(id) {
     const fiyat = Number(siparis.fiyat);
     const odenen = Number(siparis.odenen_tutar || 0);
     const kalan = fiyat - odenen;
-    let borcDurumu = kalan <= 0 ? '<span style="color:green; font-weight:bold;">Tümü Ödendi ✅</span>' : `<span style="color:red; font-weight:bold;">Kalan: ${esc(kalan)} TL</span>`;
+    let borcDurumu = kalan <= 0 ? '<span style="color:var(--green-text); font-weight:bold;">Tümü Ödendi ✅</span>' : `<span style="color:var(--red-text); font-weight:bold;">Kalan: ${esc(kalan)} TL</span>`;
 
     content.innerHTML = `
-        <div style="display:flex; gap:20px; margin-bottom:20px; background:#f8f9fa; padding:15px; border-radius:8px;">
-            <div style="flex:1;"><small style="color:#7f8c8d;">MÜŞTERİ</small><br><strong style="font-size:16px;">${esc(siparis.musteri_adi)}</strong><br>${esc(siparis.telefon)}</div>
-            <div style="flex:1; text-align:right;"><small style="color:#7f8c8d;">TESLİM</small><br><strong>${tesTarih}</strong></div>
+        <div style="display:flex; gap:20px; margin-bottom:20px; background:var(--bg-subtle); padding:15px; border-radius:8px;">
+            <div style="flex:1;"><small style="color:var(--text-secondary);">MÜŞTERİ</small><br><strong style="font-size:16px;">${esc(siparis.musteri_adi)}</strong><br>${esc(siparis.telefon)}</div>
+            <div style="flex:1; text-align:right;"><small style="color:var(--text-secondary);">TESLİM</small><br><strong>${tesTarih}</strong></div>
         </div>
-        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;"><thead style="background:#ecf0f1;"><tr><th style="padding:10px; text-align:left;">#</th><th style="padding:10px; text-align:left;">Ürün</th><th style="padding:10px; text-align:left;">Detay</th><th style="padding:10px; text-align:right;">Fiyat</th></tr></thead><tbody>${urunlerHTML}</tbody></table>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;"><thead style="background:var(--bg-subtle);"><tr><th style="padding:10px; text-align:left;">#</th><th style="padding:10px; text-align:left;">Ürün</th><th style="padding:10px; text-align:left;">Detay</th><th style="padding:10px; text-align:right;">Fiyat</th></tr></thead><tbody>${urunlerHTML}</tbody></table>
         
         <div style="display:flex; justify-content:flex-end;">
-            <div style="width:250px; background:#f1f2f6; padding:15px; border-radius:8px;">
+            <div style="width:250px; background:var(--bg-subtle); padding:15px; border-radius:8px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Toplam:</span> <strong>${esc(fiyat)} TL</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#7f8c8d;"><span>Ödenen:</span> <span>${esc(odenen)} TL</span></div>
-                <div style="border-top:1px solid #ccc; margin:5px 0;"></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--text-secondary);"><span>Ödenen:</span> <span>${esc(odenen)} TL</span></div>
+                <div style="border-top:1px solid var(--border-strong); margin:5px 0;"></div>
                 <div style="text-align:right;">${borcDurumu}</div>
             </div>
         </div>
 
         ${galeriHTML}
 
-        <div style="margin-top:20px; padding:10px; background:#fff3cd; border-radius:5px; color:#856404; font-size:13px;"><strong>📝 Not:</strong> ${esc(siparis.siparis_notu || '-')}</div>
+        <div style="margin-top:20px; padding:10px; background:var(--note-bg); border-radius:5px; color:var(--note-text); font-size:13px;"><strong>📝 Not:</strong> ${esc(siparis.siparis_notu || '-')}</div>
     `;
     modal.style.display = 'flex';
 }
@@ -797,7 +797,7 @@ function yapHesap() {
 
     if (document.getElementById('sonucM2')) {
         let sonucMetni = `${hesaplananDeger} ${birim}`;
-        if (ekstraFiyat > 0) sonucMetni += `<br><span style="font-size:12px; color:#555;">Kumaş: ${anaFiyat} TL + Ekstra: ${Math.round(ekstraFiyat)} TL</span>`;
+        if (ekstraFiyat > 0) sonucMetni += `<br><span style="font-size:12px; color:var(--text-secondary);">Kumaş: ${anaFiyat} TL + Ekstra: ${Math.round(ekstraFiyat)} TL</span>`;
         document.getElementById('sonucM2').innerHTML = sonucMetni;
         if(document.getElementById('hesapAciklama')) document.getElementById('hesapAciklama').innerHTML = aciklama;
         document.getElementById('sonucFiyat').innerText = toplamFiyat + " TL";
@@ -830,7 +830,7 @@ function renderListe() {
     let toplamTutar = 0;
 
     if (siparisListesi.length === 0) {
-        ul.innerHTML = '<li style="padding: 20px; text-align: center; color: #999;">Henüz ürün eklenmedi.</li>';
+        ul.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--text-muted);">Henüz ürün eklenmedi.</li>';
         toplamEl.innerText = "0 TL";
         return;
     }
@@ -839,7 +839,7 @@ function renderListe() {
         toplamTutar += urun.fiyat;
         const li = document.createElement('li');
         li.className = 'order-item';
-        li.innerHTML = `<div><strong>${esc(urun.kategori)}</strong> <br><small>${esc(urun.detay)}</small><br><small style="color:orange">${esc(urun.not)}</small></div><div style="text-align:right; font-weight:bold; color:#2c3e50;">${esc(urun.fiyat)} TL</div><button class="del-btn" onclick="listedenCikar(${index})">Sil</button>`;
+        li.innerHTML = `<div><strong>${esc(urun.kategori)}</strong> <br><small>${esc(urun.detay)}</small><br><small style="color:var(--amber-text)">${esc(urun.not)}</small></div><div style="text-align:right; font-weight:bold; color:var(--text-strong);">${esc(urun.fiyat)} TL</div><button class="del-btn" onclick="listedenCikar(${index})">Sil</button>`;
         ul.appendChild(li);
     });
     toplamEl.innerText = toplamTutar + " TL";
@@ -880,7 +880,7 @@ function renderCalendar(siparisler, notlar) {
     for (let i = 0; i < startDay; i++) { 
         const emptyDiv = document.createElement('div'); 
         emptyDiv.className = 'calendar-day'; 
-        emptyDiv.style.backgroundColor = '#f9f9f9'; 
+        emptyDiv.style.backgroundColor = 'var(--bg-empty-day)'; 
         grid.appendChild(emptyDiv); 
     }
     
@@ -924,7 +924,7 @@ function openModal(dateStr, siparisler, notlar) {
     body.innerHTML = '';
     
     if (siparisler.length === 0 && notlar.length === 0) { 
-        body.innerHTML = '<p style="text-align:center; color:#999;">Kayıt yok.</p>'; 
+        body.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Kayıt yok.</p>'; 
     }
     
     siparisler.forEach(sip => { 
@@ -933,11 +933,11 @@ function openModal(dateStr, siparisler, notlar) {
             const u = urunListesiOku(sip.urunler);
             if(u && u.length > 0) detay = `${u[0].kategori} (+${u.length-1})`;
         }
-        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #e67e22; padding:5px; margin-bottom:5px; background:#fff;"><div><strong>📦 ${esc(sip.musteri_adi)}</strong> (${esc(detay)})<br><small>${esc(sip.siparis_notu || '')}</small></div><span style="font-weight:bold;">${esc(sip.fiyat)} TL</span></div>`;
+        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #e67e22; padding:5px; margin-bottom:5px; background:var(--bg-card);"><div><strong>📦 ${esc(sip.musteri_adi)}</strong> (${esc(detay)})<br><small>${esc(sip.siparis_notu || '')}</small></div><span style="font-weight:bold;">${esc(sip.fiyat)} TL</span></div>`;
     });
 
     notlar.forEach(not => {
-        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #9b59b6; padding:5px; margin-bottom:5px; background:#fff;"><span>📌 ${esc(not.not_icerik)}</span><button class="btn-sil" onclick="notSil(${Number(not.id)})" style="float:right; padding:2px 5px;">Sil</button></div>`; 
+        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #9b59b6; padding:5px; margin-bottom:5px; background:var(--bg-card);"><span>📌 ${esc(not.not_icerik)}</span><button class="btn-sil" onclick="notSil(${Number(not.id)})" style="float:right; padding:2px 5px;">Sil</button></div>`; 
     });
     
     modal.style.display = 'flex';
