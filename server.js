@@ -1,244 +1,441 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const { Pool } = require('pg');
 const session = require('express-session');
-const multer = require('multer'); 
+const PgSession = require('connect-pg-simple')(session);
+const multer = require('multer');
 const path = require('path');
-const TelegramBot = require('node-telegram-bot-api');
-const cron = require('node-cron');
+const fs = require('fs');
+const crypto = require('crypto');
+const cloudinary = require('cloudinary').v2; // CLOUDINARY_URL ortam değişkenini otomatik okur
+
+// --- ZORUNLU ORTAM DEĞİŞKENLERİ ---
+for (const key of ['DATABASE_URL', 'ADMIN_PIN', 'SESSION_SECRET', 'CLOUDINARY_URL']) {
+    if (!process.env[key]) { console.error(`❌ ${key} ortam değişkeni tanımlı değil.`); process.exit(1); }
+}
+cloudinary.config({ secure: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CLOUDINARY_FOLDER = process.env.CLOUDINARY_FOLDER || 'papatya';
+// Cloudinary'ye geçmeden önce sunucu diskine yüklenmiş eski görseller (yalnızca okunur/silinir).
+const LEGACY_UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); 
+// Sunucu bir reverse proxy (Render, Railway, Nginx vb.) arkasındaysa TRUST_PROXY=1 olmalı;
+// aksi halde gerçek istemci IP'si ve HTTPS bilgisi okunamaz.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+app.disable('x-powered-by');
+
+// --- DB BAĞLANTISI ---
+// sslmode URL'de belirtilmişse pg onu kullanır (sertifika doğrulamalı); değilse SSL'i doğrulamalı olarak aç.
+const dbUrlHasSslMode = /[?&]sslmode=/.test(process.env.DATABASE_URL);
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ...(dbUrlHasSslMode ? {} : { ssl: true })
+});
+
+// --- GÜVENLİK BAŞLIKLARI ---
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    next();
+});
+
+// Sağlık kontrolü / keep-alive hedefi. Veritabanına ve oturum deposuna dokunmaz;
+// böylece pingler Neon veritabanını uyanık tutup ücretsiz compute saatini tüketmez.
+app.get('/health', (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ status: 'ok', uptime: Math.round(process.uptime()) });
+});
+
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(session({
+    store: new PgSession({ pool, tableName: 'oturumlar', createTableIfMissing: true }),
+    name: 'papatya.sid',
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 3600000 }
+    cookie: { maxAge: 3600000, httpOnly: true, sameSite: 'lax', secure: 'auto' }
 }));
-app.use(express.static('public'));
+
+// Eski (diskteki) görseller yalnızca giriş yapmış kullanıcıya sunulur.
+app.use('/uploads', (req, res, next) => {
+    if (!req.session.admin) return res.status(401).end();
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
+    next();
+}, express.static(LEGACY_UPLOAD_DIR, { dotfiles: 'deny', index: false }));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'deny' }));
 
 // --- MULTER AYARLARI ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => { cb(null, 'public/uploads/'); },
-    filename: (req, file, cb) => { cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname)); }
-});
-const upload = multer({ storage: storage });
+// Dosyalar diske yazılmaz; bellekte tutulup doğrudan Cloudinary'ye aktarılır.
+const IZINLI_GORSEL_TIPLERI = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const GORSEL_ADI_REGEX = /^[A-Za-z0-9_-]+\.(jpe?g|png|webp|gif)$/i;
 
-// --- DB BAĞLANTISI ---
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-
-// --- TELEGRAM BOT AYARLARI ---
-const TELEGRAM_TOKEN = '8502910514:AAG_dcVk3NzK5cKmC9nht6qDEew5DUsHdqw';
-const TELEGRAM_CHAT_ID = '-1003774547298'; 
-
-// Botu başlat (Polling kapalı, sadece mesaj atacağız)
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: false });
-
-// --- GÜNLÜK HATIRLATMA GÖREVİ (Her sabah 09:00) ---
-cron.schedule('0 9 * * *', async () => {
-    try {
-        // 1. Yarının tarihini hesapla
-        const bugun = new Date();
-        const yarin = new Date(bugun);
-        yarin.setDate(bugun.getDate() + 1); // Bugüne 1 gün ekle
-
-        // Tarih formatını ayarla (YYYY-MM-DD)
-        const offset = yarin.getTimezoneOffset() * 60000; 
-        const teslimTarihi = new Date(yarin.getTime() - offset).toISOString().split('T')[0];
-
-        console.log(`📅 Yarınki (${teslimTarihi}) teslimatlar kontrol ediliyor...`);
-
-        // 2. Veritabanından YARIN teslim edilecekleri bul
-        const query = "SELECT * FROM siparisler WHERE teslim_tarihi = $1";
-        const result = await pool.query(query, [teslimTarihi]);
-
-        if (result.rows.length > 0) {
-            let mesaj = `📋 *YARINKİ TESLİMATLAR*\n--------------------------\n`;
-            
-            result.rows.forEach((sip) => {
-                // Ürün ismini çekme mantığı (JSON kontrolü)
-                let urunGoster = sip.kategori;
-                if (sip.urunler) {
-                    try {
-                        const parsedUrunler = JSON.parse(sip.urunler);
-                        if (parsedUrunler.length > 0) {
-                            urunGoster = parsedUrunler.map(u => u.kategori).join(', ');
-                        }
-                    } catch (e) {}
-                }
-                urunGoster = urunGoster || 'Belirsiz';
-
-                mesaj += `- *${sip.musteri_adi}* - ${urunGoster}\n`;
-            });
-
-            // 3. Telegram grubuna gönder
-            bot.sendMessage(TELEGRAM_CHAT_ID, mesaj, { parse_mode: 'Markdown' });
-            console.log("✅ Yarınki teslimatlar için bildirim gönderildi.");
-        } else {
-            console.log("ℹ️ Yarın için planlanmış bir teslimat bulunmuyor.");
-        }
-    } catch (err) {
-        console.error("❌ Telegram Bot hatası:", err);
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024, files: 10, fields: 50 },
+    fileFilter: (req, file, cb) => {
+        if (IZINLI_GORSEL_TIPLERI.includes(file.mimetype)) cb(null, true);
+        else cb(new HttpError(400, 'Sadece JPEG, PNG, WEBP veya GIF görsel yüklenebilir.'));
     }
 });
 
-// --- MANUEL TEST ROTASI ---
-app.get('/api/test-telegram', async (req, res) => {
-    // Cron mantığını test etmek için manuel tetikleyici
-    const bugun = new Date();
-    const yarin = new Date(bugun);
-    yarin.setDate(bugun.getDate() + 1);
-    
-    const offset = yarin.getTimezoneOffset() * 60000; 
-    const teslimTarihi = new Date(yarin.getTime() - offset).toISOString().split('T')[0];
+class HttpError extends Error {
+    constructor(status, message) { super(message); this.status = status; }
+}
 
-    try {
-        const result = await pool.query("SELECT * FROM siparisler WHERE teslim_tarihi = $1", [teslimTarihi]);
-        if (result.rows.length > 0) {
-            let mesaj = `📋 *YARINKİ TESLİMATLAR*\n--------------------------\n`;
-            
-            result.rows.forEach((sip) => {
-                let urunGoster = sip.kategori;
-                if (sip.urunler) {
-                    try {
-                        const parsedUrunler = JSON.parse(sip.urunler);
-                        if (parsedUrunler.length > 0) {
-                            urunGoster = parsedUrunler.map(u => u.kategori).join(', ');
-                        }
-                    } catch (e) {}
-                }
-                urunGoster = urunGoster || 'Belirsiz';
-                
-                mesaj += `- *${sip.musteri_adi}* - ${urunGoster}\n`;
-            });
+// --- YARDIMCILAR ---
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-            bot.sendMessage(TELEGRAM_CHAT_ID, mesaj, { parse_mode: 'Markdown' });
-            res.send(`Yarın (${teslimTarihi}) için ${result.rows.length} adet sipariş bulundu ve bildirimi gönderildi.`);
-        } else {
-            res.send(`Yarın (${teslimTarihi}) için teslimat bulunamadı.`);
-        }
-    } catch (e) {
-        res.send("Hata: " + e.message);
-    }
+const parseId = (value) => {
+    const id = Number(value);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Geçersiz kayıt numarası.');
+    return id;
+};
+
+const parseNumber = (value, { integer = false, fallback = 0 } = {}) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0 || (integer && !Number.isInteger(n))) throw new HttpError(400, 'Geçersiz sayısal değer.');
+    return n;
+};
+
+const parseDate = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value))) throw new HttpError(400, 'Geçersiz tarih.');
+    return value;
+};
+
+const parseText = (value, max, { required = false, field = 'Alan' } = {}) => {
+    const text = typeof value === 'string' ? value.trim() : '';
+    if (required && !text) throw new HttpError(400, `${field} gerekli.`);
+    if (text.length > max) throw new HttpError(400, `${field} en fazla ${max} karakter olabilir.`);
+    return text;
+};
+
+const parseUrunler = (value) => {
+    if (!value) return '[]';
+    let urunler;
+    try { urunler = JSON.parse(value); } catch { throw new HttpError(400, 'Ürün listesi geçersiz.'); }
+    if (!Array.isArray(urunler) || urunler.length > 50) throw new HttpError(400, 'Ürün listesi geçersiz.');
+    return JSON.stringify(urunler.map(u => ({
+        kategori: parseText(String(u?.kategori ?? ''), 50, { field: 'Kategori' }),
+        detay: parseText(String(u?.detay ?? ''), 500, { field: 'Detay' }),
+        fiyat: parseNumber(u?.fiyat)
+    })));
+};
+
+// --- GÖRSELLER (CLOUDINARY) ---
+// DB'de görsel öğesi iki biçimde olabilir:
+//   { public_id, url }  → Cloudinary'deki görsel
+//   "123-abc.jpg"       → Cloudinary öncesi, sunucu diskindeki eski görsel
+const cloudinaryGorselMi = (g) => g && typeof g === 'object'
+    && typeof g.public_id === 'string' && g.public_id.startsWith(`${CLOUDINARY_FOLDER}/`)
+    && typeof g.url === 'string' && g.url.startsWith('https://res.cloudinary.com/');
+const eskiGorselMi = (g) => typeof g === 'string' && GORSEL_ADI_REGEX.test(g);
+const gecerliGorsel = (g) => cloudinaryGorselMi(g) || eskiGorselMi(g);
+const gorselAnahtari = (g) => (typeof g === 'string' ? g : g.public_id);
+
+// siparisler.gorsel: JSON dizi | stoklar.gorsel: JSON nesne veya eski düz dosya adı
+const gorselListesiOku = (raw) => {
+    if (!raw) return [];
+    let value;
+    try { value = JSON.parse(raw); } catch { value = raw; }
+    return (Array.isArray(value) ? value : [value]).filter(gecerliGorsel);
+};
+
+const cloudinaryyeYukle = (file) => new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+        { folder: CLOUDINARY_FOLDER, resource_type: 'image', overwrite: false },
+        (err, result) => (err ? reject(err) : resolve({ public_id: result.public_id, url: result.secure_url }))
+    );
+    stream.end(file.buffer);
 });
+
+// Ya hepsi yüklenir ya hiçbiri: biri başarısız olursa yüklenenler geri silinir.
+const gorselleriYukle = async (files = []) => {
+    const sonuclar = await Promise.allSettled(files.map(cloudinaryyeYukle));
+    const basarili = sonuclar.filter(s => s.status === 'fulfilled').map(s => s.value);
+    const hata = sonuclar.find(s => s.status === 'rejected');
+    if (hata) {
+        console.error('❌ Cloudinary yükleme hatası:', hata.reason?.message || hata.reason);
+        await gorselleriSil(basarili);
+        throw new HttpError(502, 'Görsel yüklenemedi, lütfen tekrar deneyin.');
+    }
+    return basarili;
+};
+
+const gorselleriSil = async (gorseller = []) => {
+    await Promise.all(gorseller.map(async (g) => {
+        try {
+            if (cloudinaryGorselMi(g)) {
+                const r = await cloudinary.uploader.destroy(g.public_id, { resource_type: 'image', invalidate: true });
+                if (r.result !== 'ok' && r.result !== 'not found') throw new Error(r.result);
+            } else if (eskiGorselMi(g)) {
+                await fs.promises.unlink(path.join(LEGACY_UPLOAD_DIR, g)).catch(() => {});
+            }
+        } catch (err) {
+            console.error(`❌ Görsel silinemedi (${gorselAnahtari(g)}):`, err.message || err);
+        }
+    }));
+};
+
+// DB işlemi başarısız olursa bu istekte Cloudinary'ye yüklenenleri geri al.
+const geriAlinacaklar = new WeakMap();
+const yuklemeyiKaydet = (req, gorseller) => { geriAlinacaklar.set(req, gorseller); return gorseller; };
 
 // --- VERİTABANI OLUŞTURMA ---
 const initDb = async () => {
-    try {
-        // Siparişler
-        await pool.query(`CREATE TABLE IF NOT EXISTS siparisler (id SERIAL PRIMARY KEY, musteri_adi VARCHAR(100) NOT NULL, telefon VARCHAR(20), siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP, teslim_tarihi DATE, fiyat DECIMAL(10, 2), durum VARCHAR(50) DEFAULT 'Bekliyor', kategori VARCHAR(50), siparis_notu TEXT, odenen_tutar DECIMAL(10, 2) DEFAULT 0, urunler TEXT, gorsel TEXT);`);
-        await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS odenen_tutar DECIMAL(10, 2) DEFAULT 0;`);
-        await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS urunler TEXT;`);
-        await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS gorsel TEXT;`);
-        
-        // Hatırlatıcılar
-        await pool.query(`CREATE TABLE IF NOT EXISTS hatirlaticilar (id SERIAL PRIMARY KEY, not_icerik TEXT NOT NULL, tarih DATE NOT NULL);`);
-        
-        // STOKLAR TABLOSU
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS stoklar (
-                id SERIAL PRIMARY KEY,
-                urun_kodu VARCHAR(50),
-                urun_ismi VARCHAR(100) NOT NULL,
-                top_sayisi INTEGER DEFAULT 0,
-                metre DECIMAL(10, 2) DEFAULT 0,
-                alis_fiyati DECIMAL(10, 2) DEFAULT 0,
-                alis_tarihi DATE,
-                gorsel TEXT,
-                ekleme_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-        
-        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
-        await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS siparisler (id SERIAL PRIMARY KEY, musteri_adi VARCHAR(100) NOT NULL, telefon VARCHAR(20), siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP, teslim_tarihi DATE, fiyat DECIMAL(10, 2), durum VARCHAR(50) DEFAULT 'Bekliyor', kategori VARCHAR(50), siparis_notu TEXT, odenen_tutar DECIMAL(10, 2) DEFAULT 0, urunler TEXT, gorsel TEXT);`);
+    await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS odenen_tutar DECIMAL(10, 2) DEFAULT 0;`);
+    await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS urunler TEXT;`);
+    await pool.query(`ALTER TABLE siparisler ADD COLUMN IF NOT EXISTS gorsel TEXT;`);
 
-        console.log("✅ Veritabanı Hazır.");
-    } catch (err) { console.error("❌ Veritabanı hatası:", err); }
+    await pool.query(`CREATE TABLE IF NOT EXISTS hatirlaticilar (id SERIAL PRIMARY KEY, not_icerik TEXT NOT NULL, tarih DATE NOT NULL);`);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS stoklar (
+            id SERIAL PRIMARY KEY,
+            urun_kodu VARCHAR(50),
+            urun_ismi VARCHAR(100) NOT NULL,
+            top_sayisi INTEGER DEFAULT 0,
+            metre DECIMAL(10, 2) DEFAULT 0,
+            alis_fiyati DECIMAL(10, 2) DEFAULT 0,
+            alis_tarihi DATE,
+            gorsel TEXT,
+            ekleme_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
+    await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`);
+    console.log('✅ Veritabanı Hazır.');
 };
-initDb();
 
-const loginKontrol = (req, res, next) => { if (req.session.admin) { next(); } else { res.status(401).json({ error: 'Yetkisiz' }); } };
+// --- KİMLİK DOĞRULAMA ---
+const loginKontrol = (req, res, next) => { if (req.session.admin) next(); else res.status(401).json({ error: 'Yetkisiz' }); };
 
-// --- ROUTES ---
-app.post('/api/login', (req, res) => { const { pin } = req.body; if (pin === process.env.ADMIN_PIN) { req.session.admin = true; res.json({ success: true }); } else { res.status(401).json({ success: false }); } });
-app.get('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
+// Basit deneme sınırlayıcı: IP başına 15 dakikada 5 hatalı deneme.
+const LOGIN_PENCERE_MS = 15 * 60 * 1000;
+const LOGIN_MAX_DENEME = 5;
+const loginDenemeleri = new Map();
+setInterval(() => {
+    const simdi = Date.now();
+    for (const [ip, kayit] of loginDenemeleri) if (simdi - kayit.ilk > LOGIN_PENCERE_MS) loginDenemeleri.delete(ip);
+}, LOGIN_PENCERE_MS).unref();
+
+const pinDogruMu = (pin) => {
+    if (typeof pin !== 'string') return false;
+    const a = crypto.createHash('sha256').update(pin).digest();
+    const b = crypto.createHash('sha256').update(process.env.ADMIN_PIN).digest();
+    return crypto.timingSafeEqual(a, b);
+};
+
+app.post('/api/login', (req, res, next) => {
+    const ip = req.ip;
+    const simdi = Date.now();
+    let kayit = loginDenemeleri.get(ip);
+    if (kayit && simdi - kayit.ilk > LOGIN_PENCERE_MS) { loginDenemeleri.delete(ip); kayit = undefined; }
+    if (kayit && kayit.sayi >= LOGIN_MAX_DENEME) {
+        const kalanDk = Math.ceil((LOGIN_PENCERE_MS - (simdi - kayit.ilk)) / 60000);
+        return res.status(429).json({ success: false, error: `Çok fazla hatalı deneme. ${kalanDk} dakika sonra tekrar deneyin.` });
+    }
+
+    if (!pinDogruMu(req.body?.pin)) {
+        if (kayit) kayit.sayi++; else loginDenemeleri.set(ip, { sayi: 1, ilk: simdi });
+        return res.status(401).json({ success: false });
+    }
+
+    loginDenemeleri.delete(ip);
+    // Oturum sabitleme (session fixation) saldırısına karşı yeni oturum kimliği üret.
+    req.session.regenerate((err) => {
+        if (err) return next(err);
+        req.session.admin = true;
+        req.session.save((err2) => err2 ? next(err2) : res.json({ success: true }));
+    });
+});
+
+app.post('/api/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.clearCookie('papatya.sid');
+        res.json({ success: true });
+    });
+});
 app.get('/api/session-check', (req, res) => { res.json({ loggedIn: !!req.session.admin }); });
 
-// Sipariş İşlemleri
-app.get('/api/siparisler', loginKontrol, async (req, res) => { try { const r = await pool.query('SELECT * FROM siparisler ORDER BY siparis_tarihi DESC'); res.json(r.rows); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/siparisler', loginKontrol, upload.array('siparis_gorselleri', 10), async (req, res) => {
-    const { musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler } = req.body;
-    let gorseller = []; if (req.files) gorseller = req.files.map(f => f.filename);
-    try { const r = await pool.query(`INSERT INTO siparisler (musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler, gorsel) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler, JSON.stringify(gorseller)]); res.json(r.rows[0]); } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.put('/api/siparisler/:id', loginKontrol, upload.array('yeni_gorseller', 10), async (req, res) => {
-    const { id } = req.params;
-    const { musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, durum, odenen_tutar, urunler, mevcut_gorseller } = req.body;
-    try {
-        let kg = []; if (mevcut_gorseller) kg = Array.isArray(mevcut_gorseller) ? mevcut_gorseller : [mevcut_gorseller];
-        let yg = []; if (req.files) yg = req.files.map(f => f.filename);
-        const sonGorsel = JSON.stringify([...kg, ...yg]);
-        const r = await pool.query(`UPDATE siparisler SET musteri_adi=$1, telefon=$2, teslim_tarihi=$3, fiyat=$4, siparis_notu=$5, durum=$6, odenen_tutar=$7, urunler=$8, gorsel=$9 WHERE id=$10 RETURNING *`, [musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, durum, odenen_tutar, urunler, sonGorsel, id]);
-        res.json(r.rows[0]);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.delete('/api/siparisler/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM siparisler WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+// --- SİPARİŞLER ---
+const DURUMLAR = ['Bekliyor', 'Hazırlanıyor', 'Sipariş Tamamlandı', 'Teslim Edildi'];
 
-// --- STOKLAR API ---
-app.get('/api/stoklar', loginKontrol, async (req, res) => { 
-    try { const r = await pool.query('SELECT * FROM stoklar ORDER BY ekleme_tarihi DESC'); res.json(r.rows); } 
-    catch (e) { res.status(500).json({ error: e.message }); } 
+const siparisAlanlari = (body) => ({
+    musteri_adi: parseText(body.musteri_adi, 100, { required: true, field: 'Müşteri adı' }),
+    telefon: parseText(body.telefon, 20, { field: 'Telefon' }),
+    teslim_tarihi: parseDate(body.teslim_tarihi),
+    fiyat: parseNumber(body.fiyat),
+    siparis_notu: parseText(body.siparis_notu, 5000, { field: 'Not' }),
+    urunler: parseUrunler(body.urunler)
 });
 
-app.post('/api/stoklar', loginKontrol, upload.single('stok_gorseli'), async (req, res) => {
-    let { urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi } = req.body;
-    const gorsel = req.file ? req.file.filename : null;
-    
-    top_sayisi = top_sayisi ? parseInt(top_sayisi) : 0;
-    metre = metre ? parseFloat(metre) : 0.00;
-    alis_fiyati = alis_fiyati ? parseFloat(alis_fiyati) : 0.00;
-    if (alis_tarihi === '') alis_tarihi = null;
+app.get('/api/siparisler', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('SELECT * FROM siparisler ORDER BY siparis_tarihi DESC');
+    res.json(r.rows);
+}));
 
-    try {
-        const r = await pool.query(
-            `INSERT INTO stoklar (urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, 
-            [urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel]
-        );
-        res.json(r.rows[0]);
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+app.post('/api/siparisler', loginKontrol, upload.array('siparis_gorselleri', 10), asyncHandler(async (req, res) => {
+    const s = siparisAlanlari(req.body);
+    const gorseller = yuklemeyiKaydet(req, await gorselleriYukle(req.files));
+    const r = await pool.query(
+        `INSERT INTO siparisler (musteri_adi, telefon, teslim_tarihi, fiyat, siparis_notu, urunler, gorsel) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [s.musteri_adi, s.telefon, s.teslim_tarihi, s.fiyat, s.siparis_notu, s.urunler, JSON.stringify(gorseller)]
+    );
+    res.json(r.rows[0]);
+}));
+
+app.put('/api/siparisler/:id', loginKontrol, upload.array('yeni_gorseller', 10), asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const s = siparisAlanlari(req.body);
+    const durum = DURUMLAR.includes(req.body.durum) ? req.body.durum : 'Bekliyor';
+    const odenen_tutar = parseNumber(req.body.odenen_tutar);
+
+    const mevcut = await pool.query('SELECT gorsel FROM siparisler WHERE id = $1', [id]);
+    if (mevcut.rows.length === 0) throw new HttpError(404, 'Sipariş bulunamadı.');
+    const eskiGorseller = gorselListesiOku(mevcut.rows[0].gorsel);
+
+    // İstemcinin "koru" dediği görseller yalnızca bu siparişe zaten ait olanlardan seçilebilir.
+    const istenen = [].concat(req.body.mevcut_gorseller || []);
+    const korunan = eskiGorseller.filter(g => istenen.includes(gorselAnahtari(g)));
+    const silinecek = eskiGorseller.filter(g => !korunan.includes(g));
+    const yeni = yuklemeyiKaydet(req, await gorselleriYukle(req.files));
+
+    const r = await pool.query(
+        `UPDATE siparisler SET musteri_adi=$1, telefon=$2, teslim_tarihi=$3, fiyat=$4, siparis_notu=$5, durum=$6, odenen_tutar=$7, urunler=$8, gorsel=$9 WHERE id=$10 RETURNING *`,
+        [s.musteri_adi, s.telefon, s.teslim_tarihi, s.fiyat, s.siparis_notu, durum, odenen_tutar, s.urunler, JSON.stringify([...korunan, ...yeni]), id]
+    );
+    // Kayıt güncellendikten sonra kaldırılan görseller Cloudinary'den de silinir.
+    await gorselleriSil(silinecek);
+    res.json(r.rows[0]);
+}));
+
+app.delete('/api/siparisler/:id', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('DELETE FROM siparisler WHERE id = $1 RETURNING gorsel', [parseId(req.params.id)]);
+    if (r.rows[0]) await gorselleriSil(gorselListesiOku(r.rows[0].gorsel));
+    res.json({ success: true });
+}));
+
+// --- STOKLAR ---
+const stokAlanlari = (body) => ({
+    urun_kodu: parseText(body.urun_kodu, 50, { field: 'Ürün kodu' }),
+    urun_ismi: parseText(body.urun_ismi, 100, { required: true, field: 'Ürün ismi' }),
+    top_sayisi: parseNumber(body.top_sayisi, { integer: true }),
+    metre: parseNumber(body.metre),
+    alis_fiyati: parseNumber(body.alis_fiyati),
+    alis_tarihi: parseDate(body.alis_tarihi)
 });
 
-app.put('/api/stoklar/:id', loginKontrol, upload.single('stok_gorseli'), async (req, res) => {
-    const { id } = req.params;
-    let { urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, mevcut_gorsel } = req.body;
-    const gorsel = req.file ? req.file.filename : mevcut_gorsel;
-    
-    top_sayisi = top_sayisi ? parseInt(top_sayisi) : 0;
-    metre = metre ? parseFloat(metre) : 0.00;
-    alis_fiyati = alis_fiyati ? parseFloat(alis_fiyati) : 0.00;
-    if (alis_tarihi === '') alis_tarihi = null;
+app.get('/api/stoklar', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('SELECT * FROM stoklar ORDER BY ekleme_tarihi DESC');
+    res.json(r.rows);
+}));
 
-    try {
-        const result = await pool.query(
-            `UPDATE stoklar SET urun_kodu=$1, urun_ismi=$2, top_sayisi=$3, metre=$4, alis_fiyati=$5, alis_tarihi=$6, gorsel=$7 WHERE id=$8 RETURNING *`,
-            [urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel, id]
-        );
-        res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+app.post('/api/stoklar', loginKontrol, upload.single('stok_gorseli'), asyncHandler(async (req, res) => {
+    const s = stokAlanlari(req.body);
+    const [gorsel] = yuklemeyiKaydet(req, await gorselleriYukle(req.file ? [req.file] : []));
+    const r = await pool.query(
+        `INSERT INTO stoklar (urun_kodu, urun_ismi, top_sayisi, metre, alis_fiyati, alis_tarihi, gorsel) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [s.urun_kodu, s.urun_ismi, s.top_sayisi, s.metre, s.alis_fiyati, s.alis_tarihi, gorsel ? JSON.stringify(gorsel) : null]
+    );
+    res.json(r.rows[0]);
+}));
+
+app.put('/api/stoklar/:id', loginKontrol, upload.single('stok_gorseli'), asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const s = stokAlanlari(req.body);
+
+    const mevcut = await pool.query('SELECT gorsel FROM stoklar WHERE id = $1', [id]);
+    if (mevcut.rows.length === 0) throw new HttpError(404, 'Stok bulunamadı.');
+    const [eskiGorsel] = gorselListesiOku(mevcut.rows[0].gorsel);
+
+    // Yeni görsel yüklendiyse eskisinin yerine geçer; "gorsel_sil" ile görsel tamamen kaldırılabilir.
+    const [yeniGorsel] = yuklemeyiKaydet(req, await gorselleriYukle(req.file ? [req.file] : []));
+    const gorselSil = req.body.gorsel_sil === '1';
+    const sonGorsel = yeniGorsel || (gorselSil ? null : eskiGorsel || null);
+
+    const r = await pool.query(
+        `UPDATE stoklar SET urun_kodu=$1, urun_ismi=$2, top_sayisi=$3, metre=$4, alis_fiyati=$5, alis_tarihi=$6, gorsel=$7 WHERE id=$8 RETURNING *`,
+        [s.urun_kodu, s.urun_ismi, s.top_sayisi, s.metre, s.alis_fiyati, s.alis_tarihi, sonGorsel ? JSON.stringify(sonGorsel) : null, id]
+    );
+    if (eskiGorsel && sonGorsel !== eskiGorsel) await gorselleriSil([eskiGorsel]);
+    res.json(r.rows[0]);
+}));
+
+app.delete('/api/stoklar/:id', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('DELETE FROM stoklar WHERE id = $1 RETURNING gorsel', [parseId(req.params.id)]);
+    if (r.rows[0]) await gorselleriSil(gorselListesiOku(r.rows[0].gorsel));
+    res.json({ success: true });
+}));
+
+// --- HATIRLATICILAR ---
+app.get('/api/hatirlaticilar', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('SELECT * FROM hatirlaticilar');
+    res.json(r.rows);
+}));
+
+app.post('/api/hatirlaticilar', loginKontrol, asyncHandler(async (req, res) => {
+    const not = parseText(req.body.not_icerik, 1000, { required: true, field: 'Not' });
+    const tarih = parseDate(req.body.tarih);
+    if (!tarih) throw new HttpError(400, 'Tarih gerekli.');
+    await pool.query('INSERT INTO hatirlaticilar (not_icerik, tarih) VALUES ($1, $2)', [not, tarih]);
+    res.json({ success: true });
+}));
+
+app.delete('/api/hatirlaticilar/:id', loginKontrol, asyncHandler(async (req, res) => {
+    await pool.query('DELETE FROM hatirlaticilar WHERE id=$1', [parseId(req.params.id)]);
+    res.json({ success: true });
+}));
+
+// --- HATA YÖNETİMİ ---
+// İç hata detayları (SQL, dosya yolu vb.) istemciye gönderilmez, sadece loglanır.
+app.use(async (err, req, res, next) => {
+    const yuklenen = geriAlinacaklar.get(req);
+    if (yuklenen?.length) await gorselleriSil(yuklenen);
+    if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err instanceof multer.MulterError) {
+        const mesaj = err.code === 'LIMIT_FILE_SIZE' ? 'Dosya boyutu en fazla 10 MB olabilir.' : 'Dosya yükleme hatası.';
+        return res.status(400).json({ error: mesaj });
+    }
+    if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') return res.status(400).json({ error: 'Geçersiz istek.' });
+    console.error('❌ Sunucu hatası:', err);
+    res.status(500).json({ error: 'Sunucu hatası oluştu.' });
 });
 
-app.delete('/api/stoklar/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM stoklar WHERE id = $1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+// --- KEEP-ALIVE (Render ücretsiz planı 15 dk istek gelmezse sunucuyu uyutur) ---
+// Render, RENDER_EXTERNAL_URL değişkenini otomatik tanımlar; sunucu kendi /health adresini
+// dışarıdan (Render proxy'si üzerinden) pingleyerek uyumasını engeller.
+const keepAliveBaslat = () => {
+    if (process.env.KEEP_ALIVE === '0') return;
+    const base = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+    if (!base) return; // yerelde çalışırken pingleme yapılmaz
+    const url = new URL('/health', base).toString();
+    const dakika = Math.max(Number(process.env.KEEP_ALIVE_DAKIKA) || 10, 0.05);
 
-// Hatırlatıcılar
-app.get('/api/hatirlaticilar', loginKontrol, async (req, res) => { try { const r = await pool.query('SELECT * FROM hatirlaticilar'); res.json(r.rows); } catch (e) { res.status(500).json({error: e.message}); } });
-app.post('/api/hatirlaticilar', loginKontrol, async (req, res) => { try { await pool.query('INSERT INTO hatirlaticilar (not_icerik, tarih) VALUES ($1, $2)', [req.body.not_icerik, req.body.tarih]); res.json({success:true}); } catch (e) { res.status(500).json({error: e.message}); } });
-app.delete('/api/hatirlaticilar/:id', loginKontrol, async (req, res) => { try { await pool.query('DELETE FROM hatirlaticilar WHERE id=$1', [req.params.id]); res.json({success:true}); } catch (e) { res.status(500).json({error: e.message}); } });
+    let ardisikHata = 0;
+    const ping = async () => {
+        try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'papatya-keep-alive' } });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            if (ardisikHata > 0) console.log('✅ Keep-alive pingi yeniden başarılı.');
+            ardisikHata = 0;
+        } catch (err) {
+            ardisikHata++;
+            console.warn(`⚠️ Keep-alive pingi başarısız (${ardisikHata}. kez): ${err.message}`);
+        }
+    };
+    setInterval(ping, dakika * 60 * 1000);
+    console.log(`🔁 Keep-alive aktif: ${url} her ${dakika} dakikada pinglenecek.`);
+};
 
-app.listen(PORT, () => console.log(`🚀 Sunucu http://localhost:${PORT} adresinde hazır.`));
+initDb()
+    .then(() => app.listen(PORT, () => {
+        console.log(`🚀 Sunucu http://localhost:${PORT} adresinde hazır.`);
+        keepAliveBaslat();
+    }))
+    .catch((err) => { console.error('❌ Veritabanı hatası:', err); process.exit(1); });

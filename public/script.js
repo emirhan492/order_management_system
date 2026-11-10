@@ -7,6 +7,40 @@ let currentSort = { column: null, direction: 'default' };
 let currentEditImages = []; 
 let tumStoklar = [];
 
+// Kullanıcı verisini HTML'e yazmadan önce kaçışla (XSS koruması).
+function esc(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Görsel öğesi: Cloudinary için { public_id, url }, eski diskteki görseller için "dosya-adi.jpg".
+// boyut verilirse Cloudinary küçük resim (thumbnail) adresi üretilir.
+function gorselUrl(g, boyut) {
+    if (g && typeof g === 'object' && typeof g.url === 'string' && g.url.startsWith('https://res.cloudinary.com/')) {
+        return boyut ? g.url.replace('/upload/', `/upload/c_fill,w_${boyut},h_${boyut},q_auto,f_auto/`) : g.url;
+    }
+    if (typeof g === 'string' && /^[A-Za-z0-9_-]+\.(jpe?g|png|webp|gif)$/i.test(g)) return `/uploads/${g}`;
+    return '';
+}
+
+function gorselAnahtari(g) { return typeof g === 'string' ? g : g.public_id; }
+
+// siparis.gorsel: JSON dizi | stok.gorsel: JSON nesne veya eski düz dosya adı
+function gorselListesi(raw) {
+    if (!raw) return [];
+    let value;
+    try { value = JSON.parse(raw); } catch (e) { value = raw; }
+    return (Array.isArray(value) ? value : [value]).filter(g => gorselUrl(g));
+}
+
+function urunListesiOku(urunler) {
+    try { const list = JSON.parse(urunler); return Array.isArray(list) ? list : null; } catch (e) { return null; }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Oturum Kontrolü
     const res = await fetch('/api/session-check');
@@ -68,23 +102,25 @@ function renderStoklar(data) {
 
     data.forEach(item => {
         let imgHTML = '<span style="font-size:24px;">📦</span>';
-        if (item.gorsel) {
-            imgHTML = `<img src="/uploads/${item.gorsel}" class="stok-img" onclick="openImageModal('/uploads/${item.gorsel}')">`;
+        const [g] = gorselListesi(item.gorsel);
+        if (g) {
+            imgHTML = `<img src="${esc(gorselUrl(g, 120))}" class="stok-img" onclick="openImageModal('${esc(gorselUrl(g))}')">`;
         }
 
         const tarihGoster = item.alis_tarihi ? new Date(item.alis_tarihi).toLocaleDateString('tr-TR') : '-';
+        const id = Number(item.id);
 
         const row = `
             <tr>
                 <td>${imgHTML}</td>
-                <td><strong>${item.urun_kodu || '-'}</strong></td>
-                <td>${item.urun_ismi}</td>
-                <td><span style="background:#e8f6f3; color:#16a085; padding:3px 8px; border-radius:4px; font-weight:bold;">${item.top_sayisi} Top / ${item.metre} mt</span></td>
-                <td><span style="color:#d35400; font-weight:bold;">${item.alis_fiyati} TL</span></td>
+                <td><strong>${esc(item.urun_kodu || '-')}</strong></td>
+                <td>${esc(item.urun_ismi)}</td>
+                <td><span style="background:#e8f6f3; color:#16a085; padding:3px 8px; border-radius:4px; font-weight:bold;">${esc(item.top_sayisi)} Top / ${esc(item.metre)} mt</span></td>
+                <td><span style="color:#d35400; font-weight:bold;">${esc(item.alis_fiyati)} TL</span></td>
                 <td>${tarihGoster}</td>
                 <td>
-                    <button class="btn-duzenle" onclick='openEditStockModal(${JSON.stringify(item)})'>Düzenle</button>
-                    <button class="btn-sil" onclick="stokSil(${item.id})">Sil</button>
+                    <button class="btn-duzenle" onclick="openEditStockModal(${id})">Düzenle</button>
+                    <button class="btn-sil" onclick="stokSil(${id})">Sil</button>
                 </td>
             </tr>
         `;
@@ -139,7 +175,7 @@ async function updateStok() {
     formData.append('metre', document.getElementById('edit_metre').value || 0);
     formData.append('alis_fiyati', document.getElementById('edit_alis_fiyati').value || 0);
     formData.append('alis_tarihi', document.getElementById('edit_alis_tarihi').value);
-    formData.append('mevcut_gorsel', document.getElementById('edit_mevcut_gorsel').value);
+    formData.append('gorsel_sil', document.getElementById('edit_gorsel_sil').value);
 
     const fi = document.getElementById('edit_stok_gorseli');
     if (fi.files.length > 0) formData.append('stok_gorseli', fi.files[0]);
@@ -160,7 +196,9 @@ async function updateStok() {
 function openStockModal() { document.getElementById('stockModal').style.display = 'flex'; }
 function closeStockModal() { document.getElementById('stockModal').style.display = 'none'; }
 
-function openEditStockModal(item) {
+function openEditStockModal(id) {
+    const item = tumStoklar.find(s => s.id === id);
+    if (!item) return;
     document.getElementById('editStockModal').style.display = 'flex';
     document.getElementById('edit_stok_id').value = item.id;
     document.getElementById('edit_urun_kodu').value = item.urun_kodu || '';
@@ -168,7 +206,8 @@ function openEditStockModal(item) {
     document.getElementById('edit_top_sayisi').value = item.top_sayisi || 0;
     document.getElementById('edit_metre').value = item.metre || 0;
     document.getElementById('edit_alis_fiyati').value = item.alis_fiyati || 0;
-    document.getElementById('edit_mevcut_gorsel').value = item.gorsel || ''; 
+    document.getElementById('edit_gorsel_sil').value = '0';
+    document.getElementById('edit_stok_gorseli').value = '';
     
     if (item.alis_tarihi) {
         const date = new Date(item.alis_tarihi);
@@ -177,12 +216,26 @@ function openEditStockModal(item) {
         document.getElementById('edit_alis_tarihi').value = '';
     }
 
+    renderStokGorselOnizleme(gorselListesi(item.gorsel)[0]);
+}
+
+function renderStokGorselOnizleme(g) {
     const preview = document.getElementById('editStokImagePreview');
-    if (item.gorsel) {
-        preview.innerHTML = `<img src="/uploads/${item.gorsel}" style="height:60px; border-radius:4px; border:1px solid #ccc;">`;
+    if (g) {
+        preview.innerHTML = `
+            <div class="gallery-item" style="display:inline-block;">
+                <img src="${esc(gorselUrl(g, 120))}" style="height:60px; border-radius:4px; border:1px solid #ccc;">
+                <button type="button" class="img-delete-btn" onclick="stokGorselKaldir()" title="Görseli kaldır">×</button>
+            </div>`;
     } else {
         preview.innerHTML = '<small style="color:#999">Görsel yok</small>';
     }
+}
+
+function stokGorselKaldir() {
+    if (!confirm('Bu görsel silinsin mi? (Kaydet butonuna basınca işlem tamamlanır)')) return;
+    document.getElementById('edit_gorsel_sil').value = '1';
+    renderStokGorselOnizleme(null);
 }
 function closeEditStockModal() { document.getElementById('editStockModal').style.display = 'none'; }
 
@@ -217,8 +270,8 @@ function satirEkle(mod = 'yeni', veri = null) {
             <option value="Yastık" ${k==='Yastık'?'selected':''}>Yastık</option>
             <option value="Çarşaf" ${k==='Çarşaf'?'selected':''}>Çarşaf</option>
         </select>
-        <input type="text" class="u-detay" placeholder="Detay" value="${d}">
-        <input type="number" class="u-fiyat" placeholder="Fiyat" value="${f}" oninput="fiyatHesapla('${mod}')" style="text-align:right;">
+        <input type="text" class="u-detay" placeholder="Detay" value="${esc(d)}">
+        <input type="number" class="u-fiyat" placeholder="Fiyat" value="${esc(f)}" oninput="fiyatHesapla('${mod}')" style="text-align:right;">
         <button type="button" class="btn-sil-satir" onclick="satirSil(this, '${mod}')">🗑️</button>
     `;
     
@@ -323,8 +376,8 @@ async function updateSiparis(e) {
     formData.append('fiyat', document.getElementById('editFiyat').value);
     formData.append('urunler', urunlerJSON);
 
-    currentEditImages.forEach(imgName => {
-        formData.append('mevcut_gorseller', imgName);
+    currentEditImages.forEach(g => {
+        formData.append('mevcut_gorseller', gorselAnahtari(g));
     });
 
     const newFiles = document.getElementById('editYeniGorseller');
@@ -343,7 +396,10 @@ async function updateSiparis(e) {
             alert('Sipariş güncellendi! ✅');
             closeEditModal();
             getSiparisler();
-        } else { alert('Güncelleme hatası!'); }
+        } else {
+            const err = await response.json().catch(() => ({}));
+            alert('Güncelleme hatası: ' + (err.error || 'Bilinmeyen hata'));
+        }
     } catch (error) { console.error('Hata:', error); }
 }
 
@@ -379,8 +435,8 @@ function filterOrders() {
 
     let filteredData = tumSiparisler.filter(siparis => {
         // 1. İsim ve Telefon Araması (Mevcut)
-        const isimMatch = siparis.musteri_adi.toLowerCase().includes(searchText);
-        const telMatch = siparis.telefon.includes(searchText);
+        const isimMatch = (siparis.musteri_adi || '').toLowerCase().includes(searchText);
+        const telMatch = (siparis.telefon || '').includes(searchText);
         
         // 2. Ürün İçeriği Araması (YENİ EKLENDİ)
         let urunMatch = false;
@@ -388,8 +444,8 @@ function filterOrders() {
             try {
                 const urunler = JSON.parse(siparis.urunler);
                 // Ürün listesindeki kategori veya detayda aranan kelime var mı?
-                urunMatch = urunler.some(u => 
-                    u.kategori.toLowerCase().includes(searchText) || 
+                urunMatch = urunler.some(u =>
+                    (u.kategori || '').toLowerCase().includes(searchText) ||
                     (u.detay && u.detay.toLowerCase().includes(searchText))
                 );
             } catch (e) {
@@ -436,21 +492,22 @@ function filterOrders() {
         let kategoriGoster = "Genel";
 
         if (siparis.urunler) {
-            try {
-                const urunler = JSON.parse(siparis.urunler);
+            const urunler = urunListesiOku(siparis.urunler);
+            if (urunler) {
                 if(urunler.length > 0) kategoriGoster = urunler[0].kategori;
                 if(urunler.length > 1) kategoriGoster += ` (+${urunler.length-1} Ürün)`;
-                urunler.forEach(u => { urunOzet += `<div>• ${u.kategori}: <small>${u.detay}</small></div>`; });
-            } catch(e) { urunOzet = siparis.siparis_notu || '-'; }
+                urunler.forEach(u => { urunOzet += `<div>• ${esc(u.kategori)}: <small>${esc(u.detay)}</small></div>`; });
+            } else { urunOzet = esc(siparis.siparis_notu || '-'); }
         } else {
             kategoriGoster = siparis.kategori || 'Genel';
-            urunOzet = `<small>${siparis.siparis_notu || '-'}</small>`;
+            urunOzet = `<small>${esc(siparis.siparis_notu || '-')}</small>`;
         }
 
         const fiyat = Number(siparis.fiyat);
         const odenen = Number(siparis.odenen_tutar || 0);
         const kalan = fiyat - odenen;
-        let borcHTML = kalan <= 0 ? '<span style="color:green;font-weight:bold;font-size:12px;">✅ Ödendi</span>' : `<span style="color:red;font-weight:bold;font-size:12px;">Kalan: ${kalan} TL</span>`;
+        let borcHTML = kalan <= 0 ? '<span style="color:green;font-weight:bold;font-size:12px;">✅ Ödendi</span>' : `<span style="color:red;font-weight:bold;font-size:12px;">Kalan: ${esc(kalan)} TL</span>`;
+        const id = Number(siparis.id);
         
         let durumRenk = '#ecf0f1';
         if (siparis.durum === 'Teslim Edildi') durumRenk = '#d4edda';
@@ -458,86 +515,77 @@ function filterOrders() {
         if (siparis.durum === 'Hazırlanıyor') durumRenk = '#fff3cd';
 
         const satir = `
-            <tr onclick='openDetailModal(${JSON.stringify(siparis)})'>
-                <td>${siparis.musteri_adi}<br><small>${siparis.telefon}</small></td>
-                <td><strong>${kategoriGoster}</strong><br>${urunOzet}</td>
+            <tr onclick="openDetailModal(${id})">
+                <td>${esc(siparis.musteri_adi)}<br><small>${esc(siparis.telefon)}</small></td>
+                <td><strong>${esc(kategoriGoster)}</strong><br>${urunOzet}</td>
                 <td>Tes: ${teslim}</td>
-                <td>${siparis.fiyat} TL<br>${borcHTML}</td>
-                <td><span style="padding:5px 10px; border-radius:4px; background:${durumRenk}; font-weight:bold; font-size:13px; display:inline-block; min-width: 100px; text-align:center;">${siparis.durum}</span></td>
+                <td>${esc(siparis.fiyat)} TL<br>${borcHTML}</td>
+                <td><span style="padding:5px 10px; border-radius:4px; background:${durumRenk}; font-weight:bold; font-size:13px; display:inline-block; min-width: 100px; text-align:center;">${esc(siparis.durum)}</span></td>
                 <td>
-                    <button class="btn-duzenle" onclick='event.stopPropagation(); openEditModal(${JSON.stringify(siparis)})'>Düzenle</button>
-                    <button class="btn-sil" onclick="event.stopPropagation(); siparisSil(${siparis.id})">Sil</button>
+                    <button class="btn-duzenle" onclick="event.stopPropagation(); openEditModal(${id})">Düzenle</button>
+                    <button class="btn-sil" onclick="event.stopPropagation(); siparisSil(${id})">Sil</button>
                 </td>
             </tr>`;
         tablo.innerHTML += satir;
     });
 }
 
-function openDetailModal(siparis) {
+function openDetailModal(id) {
+    const siparis = tumSiparisler.find(s => s.id === id);
     const modal = document.getElementById('detailModal');
     const content = document.getElementById('detailContent');
-    if(!modal) return;
+    if(!modal || !siparis) return;
 
     const sipTarih = new Date(siparis.siparis_tarihi).toLocaleDateString('tr-TR');
     const tesTarih = siparis.teslim_tarihi ? new Date(siparis.teslim_tarihi).toLocaleDateString('tr-TR') : '-';
 
     let urunlerHTML = '';
     if (siparis.urunler) {
-        try {
-            const urunler = JSON.parse(siparis.urunler);
+        const urunler = urunListesiOku(siparis.urunler);
+        if (urunler) {
             urunler.forEach((u, i) => {
                 urunlerHTML += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:10px;">${i+1}</td>
-                        <td style="padding:10px;"><strong>${u.kategori}</strong></td>
-                        <td style="padding:10px; color:#555;">${u.detay}</td>
-                        <td style="padding:10px; text-align:right; font-weight:bold;">${u.fiyat} TL</td>
+                        <td style="padding:10px;"><strong>${esc(u.kategori)}</strong></td>
+                        <td style="padding:10px; color:#555;">${esc(u.detay)}</td>
+                        <td style="padding:10px; text-align:right; font-weight:bold;">${esc(u.fiyat)} TL</td>
                     </tr>`;
             });
-        } catch(e) { urunlerHTML = '<tr><td colspan="4">Veri hatası.</td></tr>'; }
+        } else { urunlerHTML = '<tr><td colspan="4">Veri hatası.</td></tr>'; }
     } else {
-        urunlerHTML = `<tr><td>1</td><td>${siparis.kategori||'Genel'}</td><td>${siparis.siparis_notu||'-'}</td><td style="text-align:right;">${siparis.fiyat} TL</td></tr>`;
+        urunlerHTML = `<tr><td>1</td><td>${esc(siparis.kategori||'Genel')}</td><td>${esc(siparis.siparis_notu||'-')}</td><td style="text-align:right;">${esc(siparis.fiyat)} TL</td></tr>`;
     }
 
     let galeriHTML = '';
-    if (siparis.gorsel) {
-        try {
-            let gorseller = [];
-            if (siparis.gorsel.startsWith('[')) {
-                gorseller = JSON.parse(siparis.gorsel);
-            } else {
-                gorseller = [siparis.gorsel];
-            }
-
-            if (gorseller.length > 0) {
-                galeriHTML = `<h4 style="margin:20px 0 10px 0; color:#2c3e50;">📸 Görseller</h4><div class="gallery-grid">`;
-                gorseller.forEach(img => {
-                    galeriHTML += `
-                        <div class="gallery-item">
-                            <img src="/uploads/${img}" onclick="openImageModal('/uploads/${img}')" style="cursor:pointer;" alt="Sipariş Fotosu">
-                        </div>`;
-                });
-                galeriHTML += `</div>`;
-            }
-        } catch (e) { console.log(e); }
+    const gorseller = gorselListesi(siparis.gorsel);
+    if (gorseller.length > 0) {
+        galeriHTML = `<h4 style="margin:20px 0 10px 0; color:#2c3e50;">📸 Görseller</h4><div class="gallery-grid">`;
+        gorseller.forEach(g => {
+            galeriHTML += `
+                <div class="gallery-item">
+                    <img src="${esc(gorselUrl(g, 300))}" onclick="openImageModal('${esc(gorselUrl(g))}')" style="cursor:pointer;" alt="Sipariş Fotosu">
+                </div>`;
+        });
+        galeriHTML += `</div>`;
     }
 
     const fiyat = Number(siparis.fiyat);
     const odenen = Number(siparis.odenen_tutar || 0);
     const kalan = fiyat - odenen;
-    let borcDurumu = kalan <= 0 ? '<span style="color:green; font-weight:bold;">Tümü Ödendi ✅</span>' : `<span style="color:red; font-weight:bold;">Kalan: ${kalan} TL</span>`;
+    let borcDurumu = kalan <= 0 ? '<span style="color:green; font-weight:bold;">Tümü Ödendi ✅</span>' : `<span style="color:red; font-weight:bold;">Kalan: ${esc(kalan)} TL</span>`;
 
     content.innerHTML = `
         <div style="display:flex; gap:20px; margin-bottom:20px; background:#f8f9fa; padding:15px; border-radius:8px;">
-            <div style="flex:1;"><small style="color:#7f8c8d;">MÜŞTERİ</small><br><strong style="font-size:16px;">${siparis.musteri_adi}</strong><br>${siparis.telefon}</div>
+            <div style="flex:1;"><small style="color:#7f8c8d;">MÜŞTERİ</small><br><strong style="font-size:16px;">${esc(siparis.musteri_adi)}</strong><br>${esc(siparis.telefon)}</div>
             <div style="flex:1; text-align:right;"><small style="color:#7f8c8d;">TESLİM</small><br><strong>${tesTarih}</strong></div>
         </div>
         <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;"><thead style="background:#ecf0f1;"><tr><th style="padding:10px; text-align:left;">#</th><th style="padding:10px; text-align:left;">Ürün</th><th style="padding:10px; text-align:left;">Detay</th><th style="padding:10px; text-align:right;">Fiyat</th></tr></thead><tbody>${urunlerHTML}</tbody></table>
         
         <div style="display:flex; justify-content:flex-end;">
             <div style="width:250px; background:#f1f2f6; padding:15px; border-radius:8px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Toplam:</span> <strong>${fiyat} TL</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#7f8c8d;"><span>Ödenen:</span> <span>${odenen} TL</span></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Toplam:</span> <strong>${esc(fiyat)} TL</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#7f8c8d;"><span>Ödenen:</span> <span>${esc(odenen)} TL</span></div>
                 <div style="border-top:1px solid #ccc; margin:5px 0;"></div>
                 <div style="text-align:right;">${borcDurumu}</div>
             </div>
@@ -545,18 +593,20 @@ function openDetailModal(siparis) {
 
         ${galeriHTML}
 
-        <div style="margin-top:20px; padding:10px; background:#fff3cd; border-radius:5px; color:#856404; font-size:13px;"><strong>📝 Not:</strong> ${siparis.siparis_notu || '-'}</div>
+        <div style="margin-top:20px; padding:10px; background:#fff3cd; border-radius:5px; color:#856404; font-size:13px;"><strong>📝 Not:</strong> ${esc(siparis.siparis_notu || '-')}</div>
     `;
     modal.style.display = 'flex';
 }
 
 function closeDetailModal() { document.getElementById('detailModal').style.display = 'none'; }
 
-function openEditModal(siparis) {
+function openEditModal(id) {
+    const siparis = tumSiparisler.find(s => s.id === id);
     const modal = document.getElementById('editModal');
+    if (!siparis || !modal) return;
     document.getElementById('editId').value = siparis.id;
     document.getElementById('editMusteri').value = siparis.musteri_adi;
-    document.getElementById('editTelefon').value = siparis.telefon;
+    document.getElementById('editTelefon').value = siparis.telefon || '';
     document.getElementById('editNot').value = siparis.siparis_notu || '';
     document.getElementById('editDurum').value = siparis.durum || 'Bekliyor';
     document.getElementById('editOdenen').value = siparis.odenen_tutar || 0;
@@ -581,13 +631,8 @@ function openEditModal(siparis) {
     if(imgContainer) {
         imgContainer.innerHTML = '';
         currentEditImages = []; 
-        if (siparis.gorsel) {
-            try {
-                let gorseller = siparis.gorsel.startsWith('[') ? JSON.parse(siparis.gorsel) : [siparis.gorsel];
-                currentEditImages = [...gorseller];
-                renderEditImages();
-            } catch(e) {}
-        }
+        currentEditImages = gorselListesi(siparis.gorsel);
+        renderEditImages();
     }
 
     fiyatHesapla('edit');
@@ -601,7 +646,7 @@ function renderEditImages() {
     currentEditImages.forEach((img, index) => {
         container.innerHTML += `
             <div class="gallery-item">
-                <img src="/uploads/${img}">
+                <img src="${esc(gorselUrl(img, 200))}">
                 <button type="button" class="img-delete-btn" onclick="removeEditImage(${index})">×</button>
             </div>
         `;
@@ -794,7 +839,7 @@ function renderListe() {
         toplamTutar += urun.fiyat;
         const li = document.createElement('li');
         li.className = 'order-item';
-        li.innerHTML = `<div><strong>${urun.kategori}</strong> <br><small>${urun.detay}</small><br><small style="color:orange">${urun.not}</small></div><div style="text-align:right; font-weight:bold; color:#2c3e50;">${urun.fiyat} TL</div><button class="del-btn" onclick="listedenCikar(${index})">Sil</button>`;
+        li.innerHTML = `<div><strong>${esc(urun.kategori)}</strong> <br><small>${esc(urun.detay)}</small><br><small style="color:orange">${esc(urun.not)}</small></div><div style="text-align:right; font-weight:bold; color:#2c3e50;">${esc(urun.fiyat)} TL</div><button class="del-btn" onclick="listedenCikar(${index})">Sil</button>`;
         ul.appendChild(li);
     });
     toplamEl.innerText = toplamTutar + " TL";
@@ -862,8 +907,8 @@ function renderCalendar(siparisler, notlar) {
         
         dayDiv.onclick = () => openModal(fullDateStr, gununSiparisleri, gununNotlari);
         
-        gununSiparisleri.forEach(sip => { dayDiv.innerHTML += `<div class="tag tag-siparis">📦 ${sip.musteri_adi}</div>`; });
-        gununNotlari.forEach(not => { dayDiv.innerHTML += `<div class="tag tag-not">📌 ${not.not_icerik}</div>`; });
+        gununSiparisleri.forEach(sip => { dayDiv.innerHTML += `<div class="tag tag-siparis">📦 ${esc(sip.musteri_adi)}</div>`; });
+        gununNotlari.forEach(not => { dayDiv.innerHTML += `<div class="tag tag-not">📌 ${esc(not.not_icerik)}</div>`; });
         
         grid.appendChild(dayDiv);
     }
@@ -884,17 +929,15 @@ function openModal(dateStr, siparisler, notlar) {
     
     siparisler.forEach(sip => { 
         let detay = `${sip.kategori || 'Genel'}`;
-        if(sip.urunler) { 
-            try { 
-                const u = JSON.parse(sip.urunler); 
-                if(u.length > 0) detay = `${u[0].kategori} (+${u.length-1})`; 
-            } catch(e) {} 
+        if(sip.urunler) {
+            const u = urunListesiOku(sip.urunler);
+            if(u && u.length > 0) detay = `${u[0].kategori} (+${u.length-1})`;
         }
-        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #e67e22; padding:5px; margin-bottom:5px; background:#fff;"><div><strong>📦 ${sip.musteri_adi}</strong> (${detay})<br><small>${sip.siparis_notu || ''}</small></div><span style="font-weight:bold;">${sip.fiyat} TL</span></div>`; 
+        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #e67e22; padding:5px; margin-bottom:5px; background:#fff;"><div><strong>📦 ${esc(sip.musteri_adi)}</strong> (${esc(detay)})<br><small>${esc(sip.siparis_notu || '')}</small></div><span style="font-weight:bold;">${esc(sip.fiyat)} TL</span></div>`;
     });
-    
-    notlar.forEach(not => { 
-        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #9b59b6; padding:5px; margin-bottom:5px; background:#fff;"><span>📌 ${not.not_icerik}</span><button class="btn-sil" onclick="notSil(${not.id})" style="float:right; padding:2px 5px;">Sil</button></div>`; 
+
+    notlar.forEach(not => {
+        body.innerHTML += `<div class="modal-item" style="border-left: 4px solid #9b59b6; padding:5px; margin-bottom:5px; background:#fff;"><span>📌 ${esc(not.not_icerik)}</span><button class="btn-sil" onclick="notSil(${Number(not.id)})" style="float:right; padding:2px 5px;">Sil</button></div>`; 
     });
     
     modal.style.display = 'flex';
@@ -954,11 +997,14 @@ function closeImageModal() {
 async function girisYap() {
     const pin = document.getElementById('pinInput').value;
     const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({pin}) });
-    const data = await res.json();
-    if (data.success) ekraniAc(); else document.getElementById('loginHata').style.display='block';
+    const data = await res.json().catch(() => ({}));
+    if (data.success) { ekraniAc(); return; }
+    const hata = document.getElementById('loginHata');
+    hata.innerText = '⚠️ ' + (data.error || 'Hatalı PIN Kodu!');
+    hata.style.display = 'block';
 }
 
-async function cikisYap() { await fetch('/api/logout'); window.location.reload(); }
+async function cikisYap() { await fetch('/api/logout', { method: 'POST' }); window.location.reload(); }
 
 function ekraniAc() { 
     if(document.getElementById('loginEkrani')) { 

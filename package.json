@@ -1,11 +1,22 @@
 {
+  "name": "papatya-order",
+  "version": "1.1.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "gorsel-tasi": "node scripts/gorselleri-cloudinarye-tasi.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
+    "cloudinary": "^2.11.0",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "multer": "^2.0.2",
-    "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.67.0",
     "pg": "^8.17.2"
   }
 }
