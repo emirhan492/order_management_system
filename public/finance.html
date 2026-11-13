@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Gelir - Gider</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container finans-container">
+        <div class="page-header">
+            <h2>💰 Gelir - Gider Tablosu</h2>
+            <a href="/" class="btn-secondary">🏠 Ana Menü</a>
+        </div>
+
+        <div class="finans-yil-bar card">
+            <button type="button" class="btn-secondary" onclick="yilDegistir(-1)" aria-label="Önceki yıl">◀</button>
+            <h3 id="finansYil">—</h3>
+            <button type="button" class="btn-secondary" onclick="yilDegistir(1)" aria-label="Sonraki yıl">▶</button>
+            <span id="kayitDurumu" class="finans-kayit-durumu" aria-live="polite"></span>
+        </div>
+
+        <div class="finans-ozet">
+            <div class="finans-ozet-kart gelir"><small>Yıllık Gelir</small><strong id="ozetGelir">0 ₺</strong></div>
+            <div class="finans-ozet-kart gider"><small>Yıllık Gider</small><strong id="ozetGider">0 ₺</strong></div>
+            <div class="finans-ozet-kart net"><small>Yıllık Net</small><strong id="ozetNet">0 ₺</strong></div>
+        </div>
+
+        <div class="card finans-kart">
+            <h3 class="finans-baslik gelir">📈 Gelir Tablosu</h3>
+            <div class="table-responsive finans-scroll">
+                <table class="finans-tablo" id="tablo-gelir"></table>
+            </div>
+            <form class="finans-ekle" onsubmit="kalemEkle(event, 'gelir')">
+                <input type="text" maxlength="100" placeholder="Yeni gelir kalemi (örn. Perde Satışı)" aria-label="Yeni gelir kalemi">
+                <button type="submit" class="btn-save">+ Gelir Kalemi Ekle</button>
+            </form>
+        </div>
+
+        <div class="card finans-kart">
+            <h3 class="finans-baslik gider">📉 Gider Tablosu</h3>
+            <div class="table-responsive finans-scroll">
+                <table class="finans-tablo" id="tablo-gider"></table>
+            </div>
+            <form class="finans-ekle" onsubmit="kalemEkle(event, 'gider')">
+                <input type="text" maxlength="100" placeholder="Yeni gider kalemi (örn. Kira, Kumaş Alımı)" aria-label="Yeni gider kalemi">
+                <button type="submit" class="btn-save">+ Gider Kalemi Ekle</button>
+            </form>
+        </div>
+
+        <div class="card finans-kart">
+            <h3 class="finans-baslik">📊 Aylık Net (Gelir − Gider)</h3>
+            <div class="table-responsive finans-scroll">
+                <table class="finans-tablo" id="tablo-net"></table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="finance.js"></script>
+</body>
+</html>

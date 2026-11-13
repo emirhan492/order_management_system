@@ -297,7 +297,81 @@ tr:hover { background: var(--bg-hover); }
 .img-delete-btn { position: absolute; top: 0; right: 0; background: rgba(239, 68, 68, 0.9); color: white; border: none; width: 20px; height: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
 
 /* =========================================
-   12. MOBİL UYUMLULUK (Responsive)
+   12. GELİR - GİDER TABLOSU
+   ========================================= */
+.finans-container { max-width: 1500px; }
+
+.finans-yil-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+.finans-yil-bar h3 { font-size: 1.4rem; font-weight: 700; color: var(--text-strong); min-width: 70px; text-align: center; font-variant-numeric: tabular-nums; }
+.finans-kayit-durumu { margin-left: auto; font-size: 13px; color: var(--text-secondary); }
+.finans-kayit-durumu[data-tip="ok"] { color: var(--green-text); }
+.finans-kayit-durumu[data-tip="hata"] { color: var(--red-text); font-weight: 600; }
+
+.finans-ozet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.finans-ozet-kart { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); border-left: 4px solid var(--border-strong); }
+.finans-ozet-kart small { display: block; color: var(--text-secondary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+.finans-ozet-kart strong { display: block; font-size: 1.35rem; color: var(--text-strong); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.finans-ozet-kart.gelir { border-left-color: var(--success); }
+.finans-ozet-kart.gider { border-left-color: var(--danger); }
+.finans-ozet-kart.net { border-left-color: var(--primary); }
+
+.finans-kart { padding: 16px; }
+.finans-baslik { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; color: var(--text-strong); }
+.finans-baslik.gelir { color: var(--green-text); }
+.finans-baslik.gider { color: var(--red-text); }
+
+.finans-scroll { max-width: 100%; }
+.finans-tablo { min-width: 1250px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.finans-tablo th, .finans-tablo td { padding: 6px 6px; text-align: right; white-space: nowrap; }
+.finans-tablo th { font-size: 11px; }
+.finans-tablo tr:hover { background: transparent; }
+.finans-tablo tbody tr:hover td { background: var(--bg-hover); }
+
+/* Kalem adı sütunu yatay kaydırmada sabit kalır */
+.finans-tablo .finans-kalem-kolon { position: sticky; left: 0; z-index: 2; background: var(--bg-card); text-align: left; min-width: 190px; width: 190px; box-shadow: 1px 0 0 var(--border); }
+.finans-tablo thead .finans-kalem-kolon { background: var(--bg-subtle); }
+.finans-tablo tfoot td { font-weight: 700; background: var(--bg-subtle); color: var(--text-strong); border-top: 2px solid var(--border-strong); }
+.finans-tablo tfoot .finans-kalem-kolon { background: var(--bg-subtle); }
+.finans-tablo .aktif-ay { background: var(--primary-soft); }
+.finans-tablo thead .aktif-ay { color: var(--primary); }
+.finans-tablo .finans-toplam { font-weight: 700; color: var(--text-strong); min-width: 100px; background: var(--bg-subtle); }
+.finans-tablo .finans-islem { width: 92px; text-align: center; }
+
+.finans-tablo input.finans-hucre,
+.finans-tablo input.finans-kalem-adi { padding: 6px 6px; font-size: 13px; border-radius: 6px; border: 1px solid transparent; background: transparent; transition: border-color 0.15s, background 0.15s; }
+.finans-tablo input.finans-hucre { text-align: right; min-width: 78px; }
+.finans-tablo input.finans-kalem-adi { font-weight: 600; }
+.finans-tablo input.finans-hucre:hover, .finans-tablo input.finans-kalem-adi:hover { border-color: var(--border); }
+.finans-tablo input.finans-hucre:focus, .finans-tablo input.finans-kalem-adi:focus { border-color: var(--primary); background: var(--bg-input); }
+.finans-tablo input.kaydedildi { border-color: var(--success); background: var(--green-soft); }
+.finans-tablo input.hata { border-color: var(--danger); background: var(--red-soft); }
+
+.finans-ikon { background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; border-radius: 6px; width: 26px; height: 26px; font-size: 11px; }
+.finans-ikon:hover:not(:disabled) { border-color: var(--border); background: var(--bg-hover); color: var(--text-main); }
+.finans-ikon:disabled { opacity: 0.3; cursor: default; }
+.finans-ikon.sil { font-size: 13px; }
+
+.finans-bos { text-align: left !important; color: var(--text-muted); padding: 20px 16px !important; }
+.finans-bos span { position: sticky; left: 16px; white-space: normal; }
+
+#tablo-net td[data-isaret="arti"] { color: var(--green-text); }
+#tablo-net td[data-isaret="eksi"] { color: var(--red-text); }
+#ozetNet[data-isaret="arti"] { color: var(--green-text); }
+#ozetNet[data-isaret="eksi"] { color: var(--red-text); }
+
+.finans-ekle { display: flex; gap: 10px; margin-top: 12px; }
+.finans-ekle input { max-width: 380px; }
+.finans-ekle .btn-save { white-space: nowrap; }
+
+@media (max-width: 768px) {
+    .finans-ozet { grid-template-columns: 1fr; gap: 8px; }
+    .finans-ekle { flex-direction: column; }
+    .finans-ekle input { max-width: none; }
+    .finans-tablo .finans-kalem-kolon { min-width: 130px; width: 130px; }
+}
+
+/* =========================================
+   13. MOBİL UYUMLULUK (Responsive)
    ========================================= */
 @media (max-width: 768px) {
     /* Genel */

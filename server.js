@@ -209,6 +209,26 @@ const initDb = async () => {
     `);
     await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
     await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`);
+
+    // GELİR / GİDER: kalemler (satırlar) yıllar arasında ortaktır, tutarlar yıl + ay bazında tutulur.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS finans_kalemleri (
+            id SERIAL PRIMARY KEY,
+            tur VARCHAR(10) NOT NULL,
+            ad VARCHAR(100) NOT NULL,
+            sira INTEGER NOT NULL DEFAULT 0,
+            olusturma TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS finans_degerleri (
+            kalem_id INTEGER NOT NULL REFERENCES finans_kalemleri(id) ON DELETE CASCADE,
+            yil INTEGER NOT NULL,
+            ay INTEGER NOT NULL,
+            tutar DECIMAL(12, 2) NOT NULL,
+            PRIMARY KEY (kalem_id, yil, ay)
+        );
+    `);
     console.log('✅ Veritabanı Hazır.');
 };
 
@@ -390,6 +410,104 @@ app.post('/api/hatirlaticilar', loginKontrol, asyncHandler(async (req, res) => {
 app.delete('/api/hatirlaticilar/:id', loginKontrol, asyncHandler(async (req, res) => {
     await pool.query('DELETE FROM hatirlaticilar WHERE id=$1', [parseId(req.params.id)]);
     res.json({ success: true });
+}));
+
+// --- GELİR / GİDER TABLOSU ---
+const FINANS_TURLERI = ['gelir', 'gider'];
+const MAX_TUTAR = 9999999999.99; // DECIMAL(12, 2) sınırı
+
+const parseYil = (value) => {
+    const yil = Number(value);
+    if (!Number.isInteger(yil) || yil < 2000 || yil > 2100) throw new HttpError(400, 'Geçersiz yıl.');
+    return yil;
+};
+
+app.get('/api/finans', loginKontrol, asyncHandler(async (req, res) => {
+    const yil = parseYil(req.query.yil);
+    const kalemler = await pool.query('SELECT id, tur, ad, sira FROM finans_kalemleri ORDER BY tur, sira, id');
+    const degerler = await pool.query('SELECT kalem_id, ay, tutar FROM finans_degerleri WHERE yil = $1', [yil]);
+    res.json({ yil, kalemler: kalemler.rows, degerler: degerler.rows });
+}));
+
+app.post('/api/finans/kalemler', loginKontrol, asyncHandler(async (req, res) => {
+    const tur = req.body.tur;
+    if (!FINANS_TURLERI.includes(tur)) throw new HttpError(400, 'Geçersiz tür.');
+    const ad = parseText(req.body.ad, 100, { required: true, field: 'Kalem adı' });
+    const r = await pool.query(
+        `INSERT INTO finans_kalemleri (tur, ad, sira)
+         VALUES ($1::varchar, $2, (SELECT COALESCE(MAX(sira), 0) + 1 FROM finans_kalemleri WHERE tur = $1::varchar))
+         RETURNING id, tur, ad, sira`,
+        [tur, ad]
+    );
+    res.json(r.rows[0]);
+}));
+
+app.put('/api/finans/kalemler/:id', loginKontrol, asyncHandler(async (req, res) => {
+    const ad = parseText(req.body.ad, 100, { required: true, field: 'Kalem adı' });
+    const r = await pool.query('UPDATE finans_kalemleri SET ad = $1 WHERE id = $2 RETURNING id, tur, ad, sira', [ad, parseId(req.params.id)]);
+    if (r.rows.length === 0) throw new HttpError(404, 'Kalem bulunamadı.');
+    res.json(r.rows[0]);
+}));
+
+// Satırı aynı türdeki komşusuyla yer değiştirerek yukarı/aşağı taşır.
+app.post('/api/finans/kalemler/:id/tasi', loginKontrol, asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const yon = req.body.yon;
+    if (yon !== 'yukari' && yon !== 'asagi') throw new HttpError(400, 'Geçersiz yön.');
+
+    const kalem = (await pool.query('SELECT id, tur, sira FROM finans_kalemleri WHERE id = $1', [id])).rows[0];
+    if (!kalem) throw new HttpError(404, 'Kalem bulunamadı.');
+    const liste = (await pool.query('SELECT id, sira FROM finans_kalemleri WHERE tur = $1 ORDER BY sira, id', [kalem.tur])).rows;
+    const i = liste.findIndex(k => k.id === id);
+    const j = yon === 'yukari' ? i - 1 : i + 1;
+    if (j < 0 || j >= liste.length) return res.json({ success: true });
+
+    // Sıraları 1..n olarak yeniden numaralandır, iki satırı yer değiştir.
+    [liste[i], liste[j]] = [liste[j], liste[i]];
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (let k = 0; k < liste.length; k++) {
+            await client.query('UPDATE finans_kalemleri SET sira = $1 WHERE id = $2', [k + 1, liste[k].id]);
+        }
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw err;
+    } finally {
+        client.release();
+    }
+    res.json({ success: true });
+}));
+
+app.delete('/api/finans/kalemler/:id', loginKontrol, asyncHandler(async (req, res) => {
+    await pool.query('DELETE FROM finans_kalemleri WHERE id = $1', [parseId(req.params.id)]);
+    res.json({ success: true });
+}));
+
+// Tek hücre kaydı: tutar boş gönderilirse hücre temizlenir.
+app.put('/api/finans/deger', loginKontrol, asyncHandler(async (req, res) => {
+    const kalemId = parseId(req.body.kalem_id);
+    const yil = parseYil(req.body.yil);
+    const ay = Number(req.body.ay);
+    if (!Number.isInteger(ay) || ay < 1 || ay > 12) throw new HttpError(400, 'Geçersiz ay.');
+
+    const kalem = await pool.query('SELECT 1 FROM finans_kalemleri WHERE id = $1', [kalemId]);
+    if (kalem.rows.length === 0) throw new HttpError(404, 'Kalem bulunamadı.');
+
+    const bos = req.body.tutar === null || req.body.tutar === undefined || req.body.tutar === '';
+    if (bos) {
+        await pool.query('DELETE FROM finans_degerleri WHERE kalem_id = $1 AND yil = $2 AND ay = $3', [kalemId, yil, ay]);
+        return res.json({ kalem_id: kalemId, yil, ay, tutar: null });
+    }
+    const tutar = Math.round(parseNumber(req.body.tutar) * 100) / 100;
+    if (tutar > MAX_TUTAR) throw new HttpError(400, 'Tutar çok büyük.');
+    await pool.query(
+        `INSERT INTO finans_degerleri (kalem_id, yil, ay, tutar) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (kalem_id, yil, ay) DO UPDATE SET tutar = EXCLUDED.tutar`,
+        [kalemId, yil, ay, tutar]
+    );
+    res.json({ kalem_id: kalemId, yil, ay, tutar });
 }));
 
 // --- HATA YÖNETİMİ ---
