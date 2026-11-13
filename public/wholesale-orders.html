@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Toptancı Siparişleri</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>🏭 Toptancı Siparişleri</h2>
+            <div class="page-header-actions">
+                <a href="new-wholesale-order.html" class="btn-save">➕ Yeni Toptancı Siparişi</a>
+                <a href="/" class="btn-secondary">🏠 Ana Menü</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="filter-bar">
+                <div class="search-box">
+                    <input type="text" id="toptanciArama" placeholder="🔍 Toptancı veya Ürün Ara..." oninput="toptanciFiltrele()">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Toptancı</th>
+                            <th>Ürünler</th>
+                            <th>Tarih</th>
+                            <th>Tutar</th>
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="toptanciTablosu"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Toptancı Siparişini Düzenle</h3>
+                <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            </div>
+
+            <div class="modal-body">
+                <form id="editToptanciForm" onsubmit="toptanciGuncelle(event)">
+                    <input type="hidden" id="editId">
+
+                    <div class="form-group">
+                        <label>Toptancı Adı</label>
+                        <input type="text" id="editToptanciAdi" maxlength="100" placeholder="Toptancı / Firma Adı" required>
+                    </div>
+
+                    <div class="product-section">
+                        <label class="section-title">📦 Sipariş İçeriği</label>
+                        <div id="editUrunListesiContainer" class="urun-container"></div>
+                        <div class="product-actions">
+                            <button type="button" class="btn-add-row" onclick="satirEkle('edit')">+ Satır Ekle</button>
+                            <div class="price-display">
+                                Toplam: <span id="editToplamFiyatGoster">0</span> TL
+                                <input type="hidden" id="editFiyat">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="image-section">
+                        <label class="section-title">📷 Fotoğraflar</label>
+                        <div id="editMevcutGorseller" class="gallery-grid"></div>
+                        <input type="file" id="editYeniGorseller" multiple accept="image/jpeg,image/png,image/webp,image/gif" class="file-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sipariş Tarihi</label>
+                        <input type="date" id="editTarih">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Genel Not</label>
+                        <textarea id="editNot" rows="3" placeholder="Siparişle ilgili notlar..."></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeEditModal()">İptal</button>
+                <button type="submit" form="editToptanciForm" class="btn-save">💾 Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📄 Toptancı Siparişi</h3>
+                <span class="close-btn" onclick="closeDetailModal()">&times;</span>
+            </div>
+            <div id="detailContent" class="modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeDetailModal()">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="imageModal" class="modal full-screen" onclick="closeImageModal()">
+        <span class="close-btn-fullscreen">&times;</span>
+        <img id="imgViewer">
+    </div>
+
+    <script src="script.js"></script>
+    <script src="wholesale.js"></script>
+</body>
+</html>

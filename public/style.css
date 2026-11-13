@@ -129,6 +129,7 @@ ul { list-style: none; }
 /* Başlık Alanı (Header) */
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
 .page-header h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-strong); margin: 0; }
+.page-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Kart Yapısı */
 .card { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; padding: 20px; margin-bottom: 20px; }
@@ -282,7 +283,9 @@ tr:hover { background: var(--bg-hover); }
 .urun-container { border: 1px solid var(--border); padding: 10px; border-radius: 8px; background: var(--bg-card); margin-bottom: 10px; }
 .urun-satiri { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; border-bottom: 1px dashed var(--border); padding-bottom: 10px; }
 .urun-satiri:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.urun-satiri select { flex: 2; } 
+.urun-satiri select { flex: 2; }
+.urun-satiri input.u-diger { flex: 2; }
+.urun-satiri input.u-diger[hidden] { display: none; }
 .urun-satiri input.u-detay { flex: 3; }
 .urun-satiri input.u-fiyat { flex: 1; text-align: right; }
 
@@ -378,6 +381,7 @@ tr:hover { background: var(--bg-hover); }
     .container { padding: 10px; }
     .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
     .page-header a { width: 100%; text-align: center; }
+    .page-header-actions { width: 100%; flex-direction: column; }
     
     /* Formlar */
     .form-row { flex-direction: column; gap: 10px; }

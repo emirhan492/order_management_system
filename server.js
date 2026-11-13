@@ -210,6 +210,20 @@ const initDb = async () => {
     await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_fiyati DECIMAL(10, 2) DEFAULT 0;`);
     await pool.query(`ALTER TABLE stoklar ADD COLUMN IF NOT EXISTS alis_tarihi DATE;`);
 
+    // TOPTANCI SİPARİŞLERİ (toptancılara verilen siparişler)
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS toptanci_siparisleri (
+            id SERIAL PRIMARY KEY,
+            toptanci_adi VARCHAR(100) NOT NULL,
+            tarih DATE,
+            urunler TEXT,
+            fiyat DECIMAL(10, 2) DEFAULT 0,
+            siparis_notu TEXT,
+            gorsel TEXT,
+            olusturma TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
     // GELİR / GİDER: kalemler (satırlar) yıllar arasında ortaktır, tutarlar yıl + ay bazında tutulur.
     await pool.query(`
         CREATE TABLE IF NOT EXISTS finans_kalemleri (
@@ -337,6 +351,58 @@ app.put('/api/siparisler/:id', loginKontrol, upload.array('yeni_gorseller', 10),
 
 app.delete('/api/siparisler/:id', loginKontrol, asyncHandler(async (req, res) => {
     const r = await pool.query('DELETE FROM siparisler WHERE id = $1 RETURNING gorsel', [parseId(req.params.id)]);
+    if (r.rows[0]) await gorselleriSil(gorselListesiOku(r.rows[0].gorsel));
+    res.json({ success: true });
+}));
+
+// --- TOPTANCI SİPARİŞLERİ ---
+const toptanciAlanlari = (body) => ({
+    toptanci_adi: parseText(body.toptanci_adi, 100, { required: true, field: 'Toptancı adı' }),
+    tarih: parseDate(body.tarih),
+    fiyat: parseNumber(body.fiyat),
+    siparis_notu: parseText(body.siparis_notu, 5000, { field: 'Not' }),
+    urunler: parseUrunler(body.urunler)
+});
+
+app.get('/api/toptanci-siparisleri', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('SELECT * FROM toptanci_siparisleri ORDER BY tarih DESC NULLS LAST, id DESC');
+    res.json(r.rows);
+}));
+
+app.post('/api/toptanci-siparisleri', loginKontrol, upload.array('gorseller', 10), asyncHandler(async (req, res) => {
+    const s = toptanciAlanlari(req.body);
+    const gorseller = yuklemeyiKaydet(req, await gorselleriYukle(req.files));
+    const r = await pool.query(
+        `INSERT INTO toptanci_siparisleri (toptanci_adi, tarih, fiyat, siparis_notu, urunler, gorsel) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [s.toptanci_adi, s.tarih, s.fiyat, s.siparis_notu, s.urunler, JSON.stringify(gorseller)]
+    );
+    res.json(r.rows[0]);
+}));
+
+app.put('/api/toptanci-siparisleri/:id', loginKontrol, upload.array('yeni_gorseller', 10), asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id);
+    const s = toptanciAlanlari(req.body);
+
+    const mevcut = await pool.query('SELECT gorsel FROM toptanci_siparisleri WHERE id = $1', [id]);
+    if (mevcut.rows.length === 0) throw new HttpError(404, 'Toptancı siparişi bulunamadı.');
+    const eskiGorseller = gorselListesiOku(mevcut.rows[0].gorsel);
+
+    // Yalnızca bu siparişe zaten ait görseller korunabilir.
+    const istenen = [].concat(req.body.mevcut_gorseller || []);
+    const korunan = eskiGorseller.filter(g => istenen.includes(gorselAnahtari(g)));
+    const silinecek = eskiGorseller.filter(g => !korunan.includes(g));
+    const yeni = yuklemeyiKaydet(req, await gorselleriYukle(req.files));
+
+    const r = await pool.query(
+        `UPDATE toptanci_siparisleri SET toptanci_adi=$1, tarih=$2, fiyat=$3, siparis_notu=$4, urunler=$5, gorsel=$6 WHERE id=$7 RETURNING *`,
+        [s.toptanci_adi, s.tarih, s.fiyat, s.siparis_notu, s.urunler, JSON.stringify([...korunan, ...yeni]), id]
+    );
+    await gorselleriSil(silinecek);
+    res.json(r.rows[0]);
+}));
+
+app.delete('/api/toptanci-siparisleri/:id', loginKontrol, asyncHandler(async (req, res) => {
+    const r = await pool.query('DELETE FROM toptanci_siparisleri WHERE id = $1 RETURNING gorsel', [parseId(req.params.id)]);
     if (r.rows[0]) await gorselleriSil(gorselListesiOku(r.rows[0].gorsel));
     res.json({ success: true });
 }));

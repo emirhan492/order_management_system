@@ -247,6 +247,11 @@ async function stokSil(id) {
 }
 
 // --- SİPARİŞ YÖNETİMİ ---
+const URUN_KATEGORILERI = ['Zebra', 'Stor', 'Tül', 'Güneşlik', 'Plicell', 'Nevresim', 'Yastık', 'Çarşaf'];
+const DIGER = '__diger';
+
+// Hem müşteri hem toptancı siparişlerinde kullanılan ürün satırı.
+// Listede olmayan bir ürün "Diğer" seçilip adı elle yazılarak eklenir; kategori olarak bu ad kaydedilir.
 function satirEkle(mod = 'yeni', veri = null) {
     const containerId = mod === 'edit' ? 'editUrunListesiContainer' : 'urunListesiContainer';
     const container = document.getElementById(containerId);
@@ -254,22 +259,18 @@ function satirEkle(mod = 'yeni', veri = null) {
 
     const div = document.createElement('div');
     div.className = 'urun-satiri';
-    
-    const k = veri ? veri.kategori : 'Zebra';
+
+    const k = veri && veri.kategori ? String(veri.kategori) : 'Zebra';
     const d = veri ? veri.detay : '';
     const f = veri ? veri.fiyat : 0;
+    const diger = !URUN_KATEGORILERI.includes(k);
 
     div.innerHTML = `
-        <select class="u-kat">
-            <option value="Zebra" ${k==='Zebra'?'selected':''}>Zebra</option>
-            <option value="Stor" ${k==='Stor'?'selected':''}>Stor</option>
-            <option value="Tül" ${k==='Tül'?'selected':''}>Tül</option>
-            <option value="Güneşlik" ${k==='Güneşlik'?'selected':''}>Güneşlik</option>
-            <option value="Plicell" ${k==='Plicell'?'selected':''}>Plicell</option>
-            <option value="Nevresim" ${k==='Nevresim'?'selected':''}>Nevresim</option>
-            <option value="Yastık" ${k==='Yastık'?'selected':''}>Yastık</option>
-            <option value="Çarşaf" ${k==='Çarşaf'?'selected':''}>Çarşaf</option>
+        <select class="u-kat" onchange="digerSecildi(this)" aria-label="Ürün">
+            ${URUN_KATEGORILERI.map(x => `<option value="${x}" ${x === k ? 'selected' : ''}>${x}</option>`).join('')}
+            <option value="${DIGER}" ${diger ? 'selected' : ''}>Diğer...</option>
         </select>
+        <input type="text" class="u-diger" placeholder="Ürün adı yazın" maxlength="50" value="${diger ? esc(k) : ''}" ${diger ? '' : 'hidden'} aria-label="Ürün adı">
         <input type="text" class="u-detay" placeholder="Detay" value="${esc(d)}">
         <input type="number" class="u-fiyat" placeholder="Fiyat" value="${esc(f)}" oninput="fiyatHesapla('${mod}')" style="text-align:right;">
         <button type="button" class="btn-sil-satir" onclick="satirSil(this, '${mod}')">🗑️</button>
@@ -277,6 +278,13 @@ function satirEkle(mod = 'yeni', veri = null) {
     
     container.appendChild(div);
     fiyatHesapla(mod);
+}
+
+function digerSecildi(select) {
+    const input = select.parentElement.querySelector('.u-diger');
+    const diger = select.value === DIGER;
+    input.hidden = !diger;
+    if (diger) input.focus(); else input.value = '';
 }
 
 function satirSil(btn, mod) {
@@ -308,18 +316,29 @@ function fiyatHesapla(mod) {
     }
 }
 
+// Ürün satırlarını JSON'a çevirir. "Diğer" seçilip adı boş bırakılan satır varsa uyarır ve null döner.
 function urunleriTopla(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return "[]";
-    const satirlar = container.querySelectorAll('.urun-satiri');
-    let urunListesi = [];
-    satirlar.forEach(row => {
+    const urunListesi = [];
+    for (const row of container.querySelectorAll('.urun-satiri')) {
+        const select = row.querySelector('.u-kat');
+        let kategori = select.value;
+        if (kategori === DIGER) {
+            const input = row.querySelector('.u-diger');
+            kategori = input.value.trim();
+            if (!kategori) {
+                alert('"Diğer" seçilen ürün için ürün adını yazın.');
+                input.focus();
+                return null;
+            }
+        }
         urunListesi.push({
-            kategori: row.querySelector('.u-kat').value,
+            kategori,
             detay: row.querySelector('.u-detay').value,
             fiyat: row.querySelector('.u-fiyat').value
         });
-    });
+    }
     return JSON.stringify(urunListesi);
 }
 
@@ -329,8 +348,9 @@ if (formElement && !document.getElementById('editModal')) {
         e.preventDefault();
         
         const urunlerJSON = urunleriTopla('urunListesiContainer');
+        if (urunlerJSON === null) return;
         const formData = new FormData();
-        
+
         formData.append('musteri_adi', document.getElementById('musteri_adi').value);
         formData.append('telefon', document.getElementById('telefon').value);
         formData.append('teslim_tarihi', document.getElementById('teslim_tarihi').value);
@@ -365,6 +385,7 @@ async function updateSiparis(e) {
     e.preventDefault();
     const id = document.getElementById('editId').value;
     const urunlerJSON = urunleriTopla('editUrunListesiContainer');
+    if (urunlerJSON === null) return;
     const formData = new FormData();
 
     formData.append('musteri_adi', document.getElementById('editMusteri').value);

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Yeni Toptancı Siparişi</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>🏭 Yeni Toptancı Siparişi</h2>
+            <div class="page-header-actions">
+                <a href="wholesale-orders.html" class="btn-secondary">📋 Toptancı Listesi</a>
+                <a href="/" class="btn-secondary">🏠 Ana Menü</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="modal-body">
+                <form id="toptanciForm" onsubmit="toptanciKaydet(event)">
+
+                    <div class="form-group">
+                        <label>Toptancı Adı</label>
+                        <input type="text" id="toptanci_adi" maxlength="100" placeholder="Toptancı / Firma Adı" required>
+                    </div>
+
+                    <div class="product-section">
+                        <label class="section-title" style="border:none; padding:0; margin-bottom:15px;">📦 Sipariş İçeriği</label>
+
+                        <div id="urunListesiContainer" class="urun-container"></div>
+
+                        <div class="product-actions">
+                            <button type="button" class="btn-add-row" onclick="satirEkle()">
+                                + Yeni Ürün Satırı Ekle
+                            </button>
+                            <div class="price-display">
+                                Toplam: <span id="toplamFiyatGoster">0</span> TL
+                                <input type="hidden" id="fiyat" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <label class="section-title">📅 Tarih ve Fotoğraflar</label>
+
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Sipariş Tarihi</label>
+                            <input type="date" id="tarih" required>
+                        </div>
+                        <div class="form-group half">
+                            <label>Fotoğraflar</label>
+                            <div style="background: var(--note-bg); border: 1px solid var(--note-border); color: var(--note-text); padding: 8px; border-radius: 6px;">
+                                <input type="file" id="gorseller" multiple accept="image/jpeg,image/png,image/webp,image/gif" class="file-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Genel Not</label>
+                        <textarea id="siparis_notu" placeholder="Siparişle ilgili notlar..." rows="3"></textarea>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button type="submit" id="toptanciKaydetBtn" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem;">
+                            ✅ Toptancı Siparişini Oluştur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="wholesale.js"></script>
+</body>
+</html>
