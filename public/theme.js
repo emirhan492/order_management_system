@@ -1,45 +1,31 @@
-// Açık / koyu tema. <head> içinde, sayfa çizilmeden önce yüklenir; böylece
-// koyu temada sayfa açılırken beyaz bir anlık parlama (flash) olmaz.
+// Tema: "light" (açık), "dark" (koyu) veya "system" (cihazın ayarını izler).
+// <head> içinde, sayfa çizilmeden önce yüklenir; böylece açılışta beyaz parlama olmaz.
+// Tercih Ayarlar sayfasından değiştirilir ve bu tarayıcıda saklanır.
 (function () {
     var KEY = 'papatya-tema';
     var root = document.documentElement;
     var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
-    function kayitliTema() {
-        try { var t = localStorage.getItem(KEY); return t === 'dark' || t === 'light' ? t : null; } catch (e) { return null; }
+    function tercih() {
+        try {
+            var t = localStorage.getItem(KEY);
+            return t === 'dark' || t === 'light' || t === 'system' ? t : 'system';
+        } catch (e) { return 'system'; }
     }
-    function sistemTemasi() { return media && media.matches ? 'dark' : 'light'; }
-
-    function uygula(tema) {
-        root.setAttribute('data-theme', tema);
-        var btn = document.getElementById('themeToggle');
-        if (btn) {
-            var koyu = tema === 'dark';
-            btn.textContent = koyu ? '☀️' : '🌙';
-            btn.setAttribute('aria-label', koyu ? 'Açık temaya geç' : 'Koyu temaya geç');
-            btn.title = btn.getAttribute('aria-label');
-        }
+    function uygula() {
+        var t = tercih();
+        var koyu = t === 'dark' || (t === 'system' && media && media.matches);
+        root.setAttribute('data-theme', koyu ? 'dark' : 'light');
     }
 
-    // Kullanıcı seçim yapmadıysa cihazın (telefon/bilgisayar) ayarını izle.
-    uygula(kayitliTema() || sistemTemasi());
-    if (media && media.addEventListener) {
-        media.addEventListener('change', function () { if (!kayitliTema()) uygula(sistemTemasi()); });
-    }
+    uygula();
+    if (media && media.addEventListener) media.addEventListener('change', uygula);
+    // Başka bir sekmede tema değişirse bu sekme de güncellenir.
+    window.addEventListener('storage', function (e) { if (e.key === KEY) uygula(); });
 
-    window.temaDegistir = function () {
-        var yeni = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        try { localStorage.setItem(KEY, yeni); } catch (e) { /* gizli sekme vb. */ }
-        uygula(yeni);
+    window.temaTercihi = tercih;
+    window.temaAyarla = function (t) {
+        try { localStorage.setItem(KEY, t); } catch (e) { /* gizli sekme vb. */ }
+        uygula();
     };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'themeToggle';
-        btn.className = 'theme-toggle';
-        btn.addEventListener('click', window.temaDegistir);
-        document.body.appendChild(btn);
-        uygula(root.getAttribute('data-theme'));
-    });
 })();

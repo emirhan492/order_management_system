@@ -7,140 +7,89 @@
     <title>Papatya Perde</title>
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        /* Sadece giriş ekranına özel stiller */
-        #loginEkrani {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); /* Kurumsal Koyu Arkaplan */
-            display: flex; align-items: center; justify-content: center; z-index: 9999;
-            padding: 20px;
-        }
-        
-        .login-card {
-            background: var(--bg-card); padding: 3rem 2rem; border-radius: 16px;
-            width: 100%; max-width: 400px; text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-
-        .login-icon {
-            font-size: 4rem; margin-bottom: 1rem; display: inline-block;
-            background: var(--bg-subtle); width: 100px; height: 100px; line-height: 100px;
-            border-radius: 50%; margin-bottom: 1.5rem;
-        }
-
-        .pin-input-style {
-            font-size: 2rem; letter-spacing: 12px; text-align: center; 
-            padding: 15px; margin: 20px 0; border: 2px solid var(--border); background: var(--bg-input); 
-            border-radius: 12px; transition: all 0.3s; width: 100%;
-            font-weight: bold; color: var(--text-main);
-        }
-        
-        .pin-input-style:focus {
-            border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-            outline: none;
-        }
-
-        /* Dashboard Kartları için renkler */
-        .card-blue { border-bottom: 4px solid #3b82f6; color: #3b82f6; }
-        .card-orange { border-bottom: 4px solid #f97316; color: #f97316; }
-        .card-purple { border-bottom: 4px solid #a855f7; color: #a855f7; }
-        .card-green { border-bottom: 4px solid #22c55e; color: #22c55e; }
-        .card-red { border-bottom: 4px solid #ef4444; color: #ef4444; }
-        
-        /* Ana menü grid yapısı */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-            padding-bottom: 40px;
-        }
-        
-        .menu-card {
-            background: var(--bg-card); border-radius: 16px; padding: 2rem 1rem;
-            text-align: center; text-decoration: none;
-            box-shadow: var(--shadow); border: 1px solid var(--border);
-            transition: all 0.2s ease; display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; min-height: 160px;
-        }
-        
-        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .menu-card:active { transform: scale(0.98); }
-        
-        .menu-icon { font-size: 3rem; margin-bottom: 10px; display: block; filter: grayscale(0.2); }
-        .menu-title { font-weight: 700; font-size: 1rem; color: var(--text-strong); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="loginEkrani">
-        <div class="login-card">
-            <div class="login-icon">🔐</div>
-            <h2 style="color:var(--text-strong); margin-bottom:5px; font-size:1.5rem;">Personel Girişi</h2>
-            <p style="color:var(--text-secondary); margin-bottom:20px; font-size:0.9rem;">Devam etmek için erişim kodunu giriniz.</p>
-            
-            <input type="password" id="pinInput" class="pin-input-style" placeholder="PIN" inputmode="numeric">
-            
-            <button onclick="girisYap()" class="btn-save" style="width:100%; padding:15px; font-size:1.1rem; border-radius:10px;">
+        <form class="login-card" onsubmit="event.preventDefault(); girisYap();">
+            <div class="login-icon">🌼</div>
+            <h2>Papatya Perde</h2>
+            <p>Devam etmek için erişim kodunuzu girin.</p>
+
+            <input type="password" id="pinInput" class="pin-input-style" placeholder="••••••" inputmode="numeric" autocomplete="current-password" aria-label="PIN kodu" autofocus>
+
+            <button type="submit" class="btn-save" style="width:100%; min-height:48px; font-size:15px;">
                 Giriş Yap
             </button>
-            
-            <p id="loginHata" style="color:var(--red-text); margin-top:20px; font-weight:600; display:none; background:var(--red-soft); padding:10px; border-radius:8px;">
-                ⚠️ Hatalı PIN Kodu!
-            </p>
-        </div>
+
+            <p id="loginHata" class="login-hata" style="display:none;">⚠️ Hatalı PIN Kodu!</p>
+        </form>
     </div>
 
     <div id="dashboard" class="container" style="display:none;">
-        
-        <div style="text-align:center; padding: 40px 0;">
-            <div style="font-size: 4rem; margin-bottom:10px;">🌼</div>
-            <h1 style="color:var(--text-strong); font-size:1.8rem; margin:0;">Papatya Perde</h1>
-            <p style="color:var(--text-secondary); margin-top:5px;">Sipariş ve Üretim Yönetim Paneli</p>
-        </div>
 
-        <div class="dashboard-grid">
+        <header class="app-hero">
+            <div class="app-logo">🌼</div>
+            <h1>Papatya Perde</h1>
+            <p>Sipariş ve Üretim Yönetim Paneli</p>
+        </header>
+
+        <nav class="dashboard-grid" aria-label="Ana menü">
             <a href="new-order.html" class="menu-card card-blue">
                 <span class="menu-icon">➕</span>
                 <span class="menu-title">Yeni Sipariş</span>
+                <span class="menu-desc">Müşteri siparişi oluştur</span>
             </a>
 
             <a href="orders.html" class="menu-card card-orange">
                 <span class="menu-icon">📋</span>
                 <span class="menu-title">Sipariş Listesi</span>
+                <span class="menu-desc">Siparişleri görüntüle ve düzenle</span>
             </a>
 
-            <a href="wholesale-orders.html" class="menu-card card-blue">
+            <a href="wholesale-orders.html" class="menu-card card-teal">
                 <span class="menu-icon">🏭</span>
                 <span class="menu-title">Toptancı Siparişleri</span>
+                <span class="menu-desc">Toptancıya verilen siparişler</span>
             </a>
 
             <a href="calendar.html" class="menu-card card-purple">
                 <span class="menu-icon">📅</span>
                 <span class="menu-title">Takvim & Ajanda</span>
+                <span class="menu-desc">Teslimatlar ve notlar</span>
             </a>
 
             <a href="calculate.html" class="menu-card card-green">
                 <span class="menu-icon">🧮</span>
                 <span class="menu-title">Fiyat Hesapla</span>
+                <span class="menu-desc">Ölçüden fiyat çıkar</span>
             </a>
 
             <a href="stock.html" class="menu-card card-orange">
                 <span class="menu-icon">📦</span>
                 <span class="menu-title">Stok Takip</span>
+                <span class="menu-desc">Kumaş ve ürün stoğu</span>
             </a>
 
-            <a href="finance.html" class="menu-card card-green">
+            <a href="finance.html" class="menu-card card-pink">
                 <span class="menu-icon">💰</span>
                 <span class="menu-title">Gelir - Gider</span>
+                <span class="menu-desc">Yıllık gelir ve gider tablosu</span>
             </a>
 
-            <div onclick="cikisYap()" class="menu-card card-red" style="cursor:pointer;">
+            <a href="settings.html" class="menu-card card-gray">
+                <span class="menu-icon">⚙️</span>
+                <span class="menu-title">Ayarlar</span>
+                <span class="menu-desc">Tema ve görünüm</span>
+            </a>
+
+            <button type="button" onclick="cikisYap()" class="menu-card card-red">
                 <span class="menu-icon">🚪</span>
                 <span class="menu-title">Çıkış Yap</span>
-            </div>
-        </div>
+                <span class="menu-desc">Oturumu kapat</span>
+            </button>
+        </nav>
 
     </div>
 

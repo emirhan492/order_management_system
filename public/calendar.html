@@ -7,28 +7,7 @@
     <title>Takvim ve Ajanda</title>
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Takvime özel ufak stiller */
-        .calendar-controls { 
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 15px; padding: 15px; background: var(--bg-subtle); border-bottom: 1px solid var(--border);
-        }
-        .calendar-controls h3 { font-size: 1.25rem; color: var(--text-main); font-weight: 700; margin: 0; }
-        
-        .weekday-header {
-            display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; 
-            margin-bottom: 10px; text-align: center; padding: 0 5px;
-        }
-        .weekday-header div {
-            font-weight: 600; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;
-        }
-        
-        /* Mobilde gün isimlerini gizle (Liste görünümüne geçtiği için) */
-        @media (max-width: 768px) {
-            .weekday-header { display: none; }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 

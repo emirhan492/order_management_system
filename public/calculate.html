@@ -7,20 +7,7 @@
     <title>Fiyat Hesapla</title>
     <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Sadece bu sayfaya özel yerleşim ayarları */
-        .calc-wrapper { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
-        .calc-left { flex: 1; min-width: 300px; }
-        .calc-right { flex: 1; min-width: 300px; }
-        
-        .order-list { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); max-height: 400px; overflow-y: auto; }
-        .order-item { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .order-item:last-child { border-bottom: none; }
-        
-        .total-box { background: var(--total-bg); color: white; padding: 20px; border-radius: 12px; margin-top: 15px; text-align: center; box-shadow: var(--shadow); }
-        .result-box { text-align: center; margin-top: 15px; padding: 15px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -99,7 +86,7 @@
                         <div id="hesapAciklama" style="font-size:0.85rem; color:var(--amber-text);"></div>
                     </div>
 
-                    <button onclick="listeyeEkle()" class="btn-save" style="width: 100%; margin-top: 15px; padding: 12px; font-size: 1rem; background:#f59e0b;">
+                    <button onclick="listeyeEkle()" class="btn-save btn-accent" style="width: 100%; margin-top: 15px;">
                         ➕ Listeye Ekle
                     </button>
                 </div>
@@ -118,7 +105,7 @@
                         <strong id="genelToplam" style="font-size: 2rem;">0 TL</strong>
                     </div>
 
-                    <button onclick="topluSipariseGec()" class="btn-save" style="width: 100%; margin-top: 15px; padding: 15px; font-size: 1.1rem;">
+                    <button onclick="topluSipariseGec()" class="btn-save" style="width: 100%; margin-top: 15px; min-height: 46px;">
                         ✅ Siparişi Oluştur
                     </button>
                 </div>

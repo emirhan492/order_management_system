@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Ayarlar</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container" style="max-width: 820px;">
+        <div class="page-header">
+            <h2>⚙️ Ayarlar</h2>
+            <a href="/" class="btn-secondary">🏠 Ana Menü</a>
+        </div>
+
+        <section class="card ayar-bolum">
+            <div class="ayar-bolum-baslik">
+                <h3>Görünüm</h3>
+                <p>Sitenin açık veya koyu renkte görünmesini seçin.</p>
+            </div>
+            <div class="ayar-icerik">
+                <div class="tema-secenekleri" role="radiogroup" aria-label="Tema">
+                    <label class="tema-secenek">
+                        <input type="radio" name="tema" value="light">
+                        <span class="tema-kart">
+                            <span class="tema-onizleme acik" aria-hidden="true"><i></i><i></i><i></i></span>
+                            <span class="tema-etiket">☀️ Açık</span>
+                        </span>
+                    </label>
+                    <label class="tema-secenek">
+                        <input type="radio" name="tema" value="dark">
+                        <span class="tema-kart">
+                            <span class="tema-onizleme koyu" aria-hidden="true"><i></i><i></i><i></i></span>
+                            <span class="tema-etiket">🌙 Koyu</span>
+                        </span>
+                    </label>
+                    <label class="tema-secenek">
+                        <input type="radio" name="tema" value="system">
+                        <span class="tema-kart">
+                            <span class="tema-onizleme sistem" aria-hidden="true"><i></i><i></i><i></i></span>
+                            <span class="tema-etiket">💻 Cihaza Göre</span>
+                        </span>
+                    </label>
+                </div>
+                <p class="ayar-not">"Cihaza Göre" seçiliyken telefon veya bilgisayar koyu moddaysa site de koyu görünür. Seçim bu cihazda saklanır.</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        (function () {
+            var secili = window.temaTercihi();
+            document.querySelectorAll('input[name="tema"]').forEach(function (r) {
+                r.checked = r.value === secili;
+                r.addEventListener('change', function () { if (r.checked) window.temaAyarla(r.value); });
+            });
+        })();
+    </script>
+</body>
+</html>
